@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<info>
+    <id>labfolder</id>
+    <name>Lab Folder Creator</name>
+    <description>Создание папок для лабораторных работ</description>
+    <version>1.0.0</version>
+    <author>Ваше имя</author>
+    <namespace>LabFolder</namespace>
+    <dependencies>
+        <nextcloud min-version="20" max-version="25"/>
+    </dependencies>
+</info>

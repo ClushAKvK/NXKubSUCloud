@@ -12,6 +12,7 @@
 /**
  * Utility class for file related operations
  */
+ 
 (function() {
 	var Files = {
 		// file space size sync
@@ -542,6 +543,38 @@ var folderDropOptions = {
 	},
 	tolerance: 'pointer'
 };
-
+/*
 // for backward compatibility
 window.Files = OCA.Files.Files;
+
+// Добавьте в конец файла:
+$(document).ready(function() {
+    if (OCA.CurrentUser.isMemberOf('Преподаватели')) {
+        var button = $('<button>')
+            .addClass('button')
+            .text('Создать раздел для лаб')
+            .click(function() {
+                showLabCreationForm();
+            });
+        $('#header').append(button);
+    }
+});
+
+function showLabCreationForm() {
+    // Загрузка списков через AJAX
+    $.get(OC.generateUrl('/apps/labfolders/get_courses'), function(courses) {
+        var form = `
+            <div class="lab-dialog">
+                <h3>Создание раздела</h3>
+                <select id="lab-course" class="form-select">
+                    ${courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                </select>
+                <select id="lab-subject" class="form-select"></select>
+                <button id="lab-create" class="primary">Создать</button>
+            </div>
+        `;
+        OC.dialogs.show(form, 'Настройки раздела');
+    });
+}
+*/
+

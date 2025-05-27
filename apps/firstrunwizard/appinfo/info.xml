@@ -33,7 +33,7 @@ The First run wizard can be customized to meet specific design goals, or to chan
 		<personal>OCA\FirstRunWizard\Settings\Personal</personal>
 	</settings>
 
-	<navigations>
+	<!--navigations>
 		<navigation>
 			<id>firstrunwizard_about</id>
 			<name>About &amp; What's new</name>
@@ -41,5 +41,5 @@ The First run wizard can be customized to meet specific design goals, or to chan
 			<order>99990</order>
 			<type>settings</type>
 		</navigation>
-	</navigations>
+	</navigations-->
 </info>

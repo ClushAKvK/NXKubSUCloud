@@ -25,7 +25,7 @@ class OC_Theme {
 	 * @return string URL
 	 */
 	public function getBaseUrl(): string {
-		return 'https://nextcloud.com';
+		return 'https://kubsu.ru';
 	}
 
 	/**
@@ -41,7 +41,7 @@ class OC_Theme {
 	 * @return string title
 	 */
 	public function getTitle(): string {
-		return 'Custom Cloud';
+		return 'KubSU Cloud';
 	}
 
 	/**
@@ -49,7 +49,7 @@ class OC_Theme {
 	 * @return string title
 	 */
 	public function getName(): string {
-		return 'Custom Cloud';
+		return 'KubSU Cloud';
 	}
 
 	/**
@@ -57,7 +57,7 @@ class OC_Theme {
 	 * @return string title
 	 */
 	public function getHTMLName(): string {
-		return 'Custom Cloud';
+		return 'KubSU Cloud';
 	}
 
 	/**
@@ -65,7 +65,7 @@ class OC_Theme {
 	 * @return string entity name
 	 */
 	public function getEntity(): string {
-		return 'Custom Cloud Co.';
+		return 'ФГБОУ ВО «Кубанский государственный университет»';
 	}
 
 	/**
@@ -73,13 +73,13 @@ class OC_Theme {
 	 * @return string slogan
 	 */
 	public function getSlogan(): string {
-		return 'Your custom cloud, personalized for you!';
+		return '';
 	}
 
 	/**
 	 * Returns short version of the footer
 	 * @return string short footer
-	 */
+         */
 	public function getShortFooter(): string {
 		$entity = $this->getEntity();
 

@@ -1,8 +1,12 @@
+<?php
+throw new Exception("Проверка выполнения PHP в list.php");
+?>
 <div class="files-controls">
 		<div class="actions creatable hidden">
 			<div id="uploadprogresswrapper">
 			</div>
 		</div>
+		
 		<div class="notCreatable notPublic hidden">
 			<div class="icon-alert-outline"></div>
 			<?php p($l->t('You do not have permission to upload or create files here'))?>
@@ -18,6 +22,27 @@
 	<?php endif;?>
 	<input type="hidden" class="max_human_file_size"
 		   value="(max <?php isset($_['uploadMaxHumanFilesize']) ? p($_['uploadMaxHumanFilesize']) : ''; ?>)">
+	<?php
+        // Проверка что пользователь преподаватель
+        $user = \OC::$server->getUserSession()->getUser();
+        $isTeacher = true;
+        if ($user) {
+            $groupManager = \OC::$server->getGroupManager();
+            $isTeacher = $groupManager->isInGroup($user->getUID(), 'Преподаватели');
+        }
+
+        if ($isTeacher): ?>
+            <div class="button lab-folder-button">
+                <a href="#" id="create-lab-folder" class="button new">
+                    <img src="<?php p(image_path('files', 'add-folder.svg')) ?>" class="icon">
+                    <span><?php p($l->t('Создать лаб.работы')) ?></span>
+                </a>
+            </div>
+        <?php endif; ?>
+        
+        <script>
+           console.log('Teacher status: true');
+        </script>
 </div>
 <div class="filelist-header"></div>
 

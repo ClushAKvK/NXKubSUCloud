@@ -19,4 +19,12 @@ $CONFIG = array (
   'dbuser' => 'cloud',
   'dbpassword' => 'cloudpass',
   'installed' => true,
+  'defaultapp' => 'files',
+  'theme' => 'example',
+  'default_language' => 'ru',
+  'force_language' => 'ru',
+  'app_install_overwrite' => 
+  array (
+    0 => 'labfolder',
+  ),
 );

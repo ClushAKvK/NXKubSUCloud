@@ -1025,6 +1025,45 @@
 				this._updateDetailsView(null);
 			}
 		},
+		// ===== Кнопка для преподавателей =====
+$(document).ready(function() {
+    // Функция проверки, является ли пользователь преподавателем
+    function isUserTeacher() {
+        return OC.currentUser && OC.getCurrentUser().isAdmin;
+        // ИЛИ, если проверка по группе:
+        // return OC.getCurrentUser().groups.indexOf('Преподаватели') !== -1;
+    }
+
+    // Функция создания кнопки
+    function createTeacherButton() {
+        //if (!isUserTeacher()) return;
+........
+        // Создаем кнопку
+        var $button = $('<div class="button">' +
+            '<a href="#" id="create-lab-folder" class="button new">' +
+            '<img src="' + OC.imagePath('core', 'actions/add') + '" class="icon">' +
+            '<span>' + t('files', 'Создать лаб.работы') + '</span>' +
+            '</a></div>');
+........
+        // Вставляем кнопку рядом с другими кнопками
+        $('.files-controls .actions').prepend($button);
+........
+        // Обработчик клика
+        $('#create-lab-folder').click(function(e) {
+            e.preventDefault();
+            OC.dialogs.alert(
+                'Здесь будет форма для создания папки лабораторных работ:\n' +
+                '1. Выбор учебного направления\n' +
+                '2. Выбор дисциплины\n' +
+                '3. Кнопка создания',
+                'Создание папки для лаб.работ'
+            );
+        });
+    }
+
+    // Создаем кнопку после загрузки интерфейса
+    setTimeout(createTeacherButton, 1000);
+});
 
 		/**
 		 * Event handler for when clicking on "Download" for the selected files
@@ -4039,4 +4078,44 @@ window.addEventListener('DOMContentLoaded', function() {
 		}
 	});
 
+});
+
+// ===== Кнопка для преподавателей =====
+$(document).ready(function() {
+    // Функция проверки, является ли пользователь преподавателем
+    function isUserTeacher() {
+        return OC.currentUser && OC.getCurrentUser().isAdmin;
+        // ИЛИ, если проверка по группе:
+        // return OC.getCurrentUser().groups.indexOf('Преподаватели') !== -1;
+    }
+
+    // Функция создания кнопки
+    function createTeacherButton() {
+        if (!isUserTeacher()) return;
+        
+        // Создаем кнопку
+        var $button = $('<div class="button">' +
+            '<a href="#" id="create-lab-folder" class="button new">' +
+            '<img src="' + OC.imagePath('core', 'actions/add') + '" class="icon">' +
+            '<span>' + t('files', 'Создать лаб.работы') + '</span>' +
+            '</a></div>');
+        
+        // Вставляем кнопку рядом с другими кнопками
+        $('.files-controls .actions').prepend($button);
+        
+        // Обработчик клика
+        $('#create-lab-folder').click(function(e) {
+            e.preventDefault();
+            OC.dialogs.alert(
+                'Здесь будет форма для создания папки лабораторных работ:\n' +
+                '1. Выбор учебного направления\n' +
+                '2. Выбор дисциплины\n' +
+                '3. Кнопка создания',
+                'Создание папки для лаб.работ'
+            );
+        });
+    }
+
+    // Создаем кнопку после загрузки интерфейса
+    setTimeout(createTeacherButton, 1000);
 });

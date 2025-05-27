@@ -10,7 +10,6 @@
  * See the COPYING-README file.
  *
  */
-
 /* global dragOptions, folderDropOptions, OC */
 (function() {
 
@@ -403,3 +402,4 @@ window.addEventListener('DOMContentLoaded', function() {
 		OCA.Files.App.initialize();
 	});
 });
+

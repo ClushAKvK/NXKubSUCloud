@@ -1,0 +1,13 @@
+/* Фоновое изображение на весь экран */
+body {
+    background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), 
+                url('../img/kubsu.jpg') no-repeat center center fixed;
+    background-size: cover;
+}
+
+/* Изменение цвета формы входа */
+.login-wrapper {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 10px;
+    padding: 20px;
+}
