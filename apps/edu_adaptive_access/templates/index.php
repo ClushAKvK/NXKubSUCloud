@@ -82,73 +82,93 @@
 		</p>
 
         <form method="post" action="<?= htmlspecialchars($save_resource_url) ?>" class="ea-resource-form">
-            <div class="ea-two-cols">
-                <div>
-                    <label>Название</label>
-                    <input type="text" name="title" required placeholder="Лекция 1"/>
+			<input type="hidden" name="owner_path" id="ea-owner-path" required />
 
-                    <label>Файл из основного хранилища</label>
-					<input type="hidden" name="owner_path" id="ea-owner-path" required />
+			<label>Название</label>
+			<input
+				type="text"
+				name="title"
+				id="ea-resource-title"
+				required
+				placeholder="Название ресурса"
+			/>
 
-					<div class="ea-file-picker">
-						<input
-							type="text"
-							id="ea-file-filter"
-							class="ea-file-filter"
-							placeholder="Фильтр по имени или пути"
-							autocomplete="off"
-						/>
+			<label>Файл из основного хранилища</label>
 
-						<select id="ea-file-select" class="ea-file-select" size="10">
-							<?php foreach ($selectable_files as $file): ?>
-								<option
-									value="<?= htmlspecialchars($file['path']) ?>"
-									data-path="<?= htmlspecialchars($file['path']) ?>"
-									data-ext="<?= htmlspecialchars($file['extension']) ?>"
-								>
-									<?= htmlspecialchars($file['path']) ?>
-									<?php if (!empty($file['browser_readable'])): ?> [PDF / browser-read]<?php endif; ?>
-								</option>
-							<?php endforeach; ?>
-						</select>
+			<div class="ea-file-picker">
+				<input
+					type="text"
+					id="ea-file-filter"
+					class="ea-file-filter"
+					placeholder="Фильтр по имени или пути"
+					autocomplete="off"
+				/>
 
-						<div class="ea-file-selected">
-							<strong>Выбранный файл:</strong>
-							<span id="ea-file-selected-text">Файл не выбран</span>
-						</div>
+				<select id="ea-file-select" class="ea-file-select" size="14">
+					<?php foreach ($selectable_files as $file): ?>
+						<option
+							value="<?= htmlspecialchars($file['path']) ?>"
+							data-path="<?= htmlspecialchars($file['path']) ?>"
+							data-name="<?= htmlspecialchars($file['name']) ?>"
+							data-ext="<?= htmlspecialchars($file['extension']) ?>"
+						>
+							<?= htmlspecialchars($file['path']) ?>
+							<?php if (!empty($file['browser_readable'])): ?> [PDF / browser-read]<?php endif; ?>
+						</option>
+					<?php endforeach; ?>
+				</select>
+
+				<div class="ea-file-selected">
+					<div class="ea-selected-row">
+						<div class="ea-selected-label">Автоподстановка названия</div>
+						<div class="ea-selected-value" id="ea-resource-title-preview">Файл не выбран</div>
 					</div>
 
-                    <label>Курс / дисциплина</label>
-                    <input type="text" name="course_code" required placeholder="ML-2026"/>
-                </div>
+					<div class="ea-selected-row">
+						<div class="ea-selected-label">Имя файла</div>
+						<div class="ea-selected-value" id="ea-file-name-preview">—</div>
+					</div>
 
-                <div>
-                    <label>Класс чувствительности</label>
-                    <select name="sensitivity">
-                        <option value="public">public</option>
-                        <option value="learning" selected>learning</option>
-                        <option value="personal">personal</option>
-                        <option value="exam">exam</option>
-                    </select>
+					<div class="ea-selected-row">
+						<div class="ea-selected-label">Полный путь</div>
+						<div class="ea-selected-value" id="ea-file-selected-text">Файл не выбран</div>
+					</div>
+				</div>
+			</div>
 
-                    <label>Открыть не раньше</label>
-                    <input type="datetime-local" name="open_from"/>
+			<div class="ea-two-cols">
+				<div>
+					<label>Курс / дисциплина</label>
+					<input type="text" name="course_code" required placeholder="ML-2026"/>
 
-                    <label>Дедлайн / срок действия</label>
-                    <input type="datetime-local" name="due_until"/>
-                </div>
-            </div>
+					<label>Класс чувствительности</label>
+					<select name="sensitivity">
+						<option value="public">public</option>
+						<option value="learning" selected>learning</option>
+						<option value="personal">personal</option>
+						<option value="exam">exam</option>
+					</select>
+				</div>
 
-            <label>Описание</label>
-            <textarea name="description" rows="3" placeholder="Короткое описание ресурса"></textarea>
+				<div>
+					<label>Открыть не раньше</label>
+					<input type="datetime-local" name="open_from"/>
 
-            <label class="ea-checkbox">
-                <input type="checkbox" name="allow_student_download"/>
-                Разрешить студенту скачивание
-            </label>
+					<label>Дедлайн / срок действия</label>
+					<input type="datetime-local" name="due_until"/>
+				</div>
+			</div>
 
-            <button type="submit">Зарегистрировать ресурс</button>
-        </form>
+			<label>Описание</label>
+			<textarea name="description" rows="3" placeholder="Короткое описание ресурса"></textarea>
+
+			<label class="ea-checkbox">
+				<input type="checkbox" name="allow_student_download"/>
+				Разрешить студенту скачивание
+			</label>
+
+			<button type="submit">Зарегистрировать ресурс</button>
+		</form>
     </section>
 
     <section class="ea-card">
