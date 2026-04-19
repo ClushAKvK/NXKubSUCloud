@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
+    const catalogNode = document.getElementById('ea-catalog-data')
     const filterInput = document.getElementById('ea-file-filter')
     const select = document.getElementById('ea-file-select')
     const hiddenPath = document.getElementById('ea-owner-path')
@@ -7,15 +8,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const selectedFileNameText = document.getElementById('ea-file-name-preview')
     const selectedTitleText = document.getElementById('ea-resource-title-preview')
 
-    if (!filterInput || !select || !hiddenPath || !titleInput || !selectedPathText || !selectedFileNameText || !selectedTitleText) {
-	return
-    }
+    const directionSelect = document.getElementById('ea-direction-select')
+    const disciplineSelect = document.getElementById('ea-discipline-select')
+    const newDisciplineInput = document.getElementById('ea-new-discipline')
 
     let titleTouchedByUser = false
 
-    titleInput.addEventListener('input', function () {
-	titleTouchedByUser = titleInput.value.trim() !== ''
-    })
+    if (titleInput) {
+	titleInput.addEventListener('input', function () {
+	    titleTouchedByUser = titleInput.value.trim() !== ''
+	})
+    }
 
     const getFileName = (path) => {
 	if (!path) return ''
@@ -29,7 +32,11 @@ document.addEventListener('DOMContentLoaded', function () {
 	return fileName.replace(/\.[^.]+$/, '')
     }
 
-    const syncSelected = () => {
+    const syncSelectedFile = () => {
+	if (!filterInput || !select || !hiddenPath || !titleInput || !selectedPathText || !selectedFileNameText || !selectedTitleText) {
+	    return
+	}
+
 	const selectedOption = select.options[select.selectedIndex]
 	if (!selectedOption || selectedOption.hidden) {
 	    hiddenPath.value = ''
@@ -53,27 +60,86 @@ document.addEventListener('DOMContentLoaded', function () {
 	}
     }
 
-    filterInput.addEventListener('input', function () {
-	const needle = filterInput.value.trim().toLowerCase()
+    if (filterInput && select && hiddenPath && titleInput && selectedPathText && selectedFileNameText && selectedTitleText) {
+	filterInput.addEventListener('input', function () {
+	    const needle = filterInput.value.trim().toLowerCase()
 
-	Array.from(select.options).forEach(function (option) {
-	    const text = option.text.toLowerCase()
-	    option.hidden = needle !== '' && !text.includes(needle)
+	    Array.from(select.options).forEach(function (option) {
+		const text = option.text.toLowerCase()
+		option.hidden = needle !== '' && !text.includes(needle)
+	    })
+
+	    const firstVisible = Array.from(select.options).find(option => !option.hidden)
+	    if (firstVisible) {
+		select.value = firstVisible.value
+	    }
+
+	    syncSelectedFile()
 	})
+
+	select.addEventListener('change', syncSelectedFile)
 
 	const firstVisible = Array.from(select.options).find(option => !option.hidden)
 	if (firstVisible) {
 	    select.value = firstVisible.value
+	    syncSelectedFile()
+	}
+    }
+
+    if (catalogNode && directionSelect && disciplineSelect) {
+	let catalog = {}
+
+	try {
+	    catalog = JSON.parse(catalogNode.dataset.catalog || '{}')
+	} catch (e) {
+	    catalog = {}
 	}
 
-	syncSelected()
-    })
+	const initialDiscipline = disciplineSelect.dataset.selected || ''
 
-    select.addEventListener('change', syncSelected)
+	const buildDisciplineOptions = (directionCode, preferredValue = '') => {
+	    const disciplines = Array.isArray(catalog[directionCode]?.disciplines)
+		? catalog[directionCode].disciplines
+		: []
 
-    const firstVisible = Array.from(select.options).find(option => !option.hidden)
-    if (firstVisible) {
-	select.value = firstVisible.value
-	syncSelected()
+	    disciplineSelect.innerHTML = ''
+
+	    const placeholder = document.createElement('option')
+	    placeholder.value = ''
+	    placeholder.textContent = 'Выберите дисциплину'
+	    disciplineSelect.appendChild(placeholder)
+
+	    disciplines.forEach((discipline) => {
+		const option = document.createElement('option')
+		option.value = discipline
+		option.textContent = discipline
+		if (discipline === preferredValue) {
+		    option.selected = true
+		}
+		disciplineSelect.appendChild(option)
+	    })
+
+	    if (preferredValue && !disciplines.includes(preferredValue)) {
+		const option = document.createElement('option')
+		option.value = preferredValue
+		option.textContent = preferredValue
+		option.selected = true
+		disciplineSelect.appendChild(option)
+	    }
+	}
+
+	directionSelect.addEventListener('change', function () {
+	    buildDisciplineOptions(directionSelect.value, '')
+	})
+
+	if (newDisciplineInput) {
+	    newDisciplineInput.addEventListener('input', function () {
+		if (newDisciplineInput.value.trim() !== '') {
+		    disciplineSelect.value = ''
+		}
+	    })
+	}
+
+	buildDisciplineOptions(directionSelect.value, initialDiscipline)
     }
 })

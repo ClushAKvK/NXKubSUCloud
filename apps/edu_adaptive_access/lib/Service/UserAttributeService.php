@@ -13,6 +13,7 @@ class UserAttributeService {
         private IConfig $config,
         private IGroupManager $groupManager,
         private PolicyConfigService $policyConfigService,
+        private AcademicCatalogService $academicCatalogService,
     ) {
     }
 
@@ -29,26 +30,58 @@ class UserAttributeService {
             $role = 'student';
         }
 
+        $directionCode = $this->config->getUserValue($uid, Application::APP_ID, 'direction_code', '');
+        $directionTitle = $this->academicCatalogService->getDirectionTitle($directionCode);
+        $disciplineName = $this->config->getUserValue($uid, Application::APP_ID, 'discipline_name', '');
+
         return [
             'uid' => $uid,
             'display_name' => $user->getDisplayName(),
             'role' => $role,
-            'course_code' => $this->config->getUserValue($uid, Application::APP_ID, 'course_code', ''),
-            'department' => $this->config->getUserValue($uid, Application::APP_ID, 'department', ''),
+            'direction_code' => $directionCode,
+            'direction_title' => $directionTitle,
+            'discipline_name' => $disciplineName,
             'managed_device' => $this->config->getUserValue($uid, Application::APP_ID, 'managed_device', '0') === '1',
             'group_ids' => $this->groupManager->getUserGroupIds($user),
+
+            // legacy compatibility
+            'course_code' => $directionCode,
+            'department' => '',
         ];
     }
 
     public function saveUserProfile(IUser $user, array $input): void {
         $uid = $user->getUID();
 
-        $courseCode = trim((string)($input['course_code'] ?? ''));
-        $department = trim((string)($input['department'] ?? ''));
+        $directionCode = trim((string)($input['direction_code'] ?? ''));
+        $disciplineName = trim((string)($input['discipline_name'] ?? ''));
+        $newDiscipline = trim((string)($input['new_discipline'] ?? ''));
         $managedDevice = isset($input['managed_device']) ? '1' : '0';
 
-        $this->config->setUserValue($uid, Application::APP_ID, 'course_code', $courseCode);
-        $this->config->setUserValue($uid, Application::APP_ID, 'department', $department);
+        if ($directionCode !== '') {
+            $directionTitle = $this->academicCatalogService->getDirectionTitle($directionCode);
+            if ($directionTitle === '') {
+                $directionCode = '';
+                $disciplineName = '';
+            }
+        } else {
+            $disciplineName = '';
+        }
+
+        if ($directionCode !== '' && $newDiscipline !== '') {
+            $disciplineName = $this->academicCatalogService->addDiscipline($directionCode, $newDiscipline);
+        }
+
+        $allowedDisciplines = $directionCode !== ''
+            ? $this->academicCatalogService->getDisciplinesForDirection($directionCode)
+            : [];
+
+        if ($disciplineName !== '' && !in_array($disciplineName, $allowedDisciplines, true)) {
+            $disciplineName = '';
+        }
+
+        $this->config->setUserValue($uid, Application::APP_ID, 'direction_code', $directionCode);
+        $this->config->setUserValue($uid, Application::APP_ID, 'discipline_name', $disciplineName);
         $this->config->setUserValue($uid, Application::APP_ID, 'managed_device', $managedDevice);
     }
 }

@@ -46,13 +46,24 @@ class ResourceRegistryService {
         $resources = $this->getAll();
         $id = trim((string)($input['id'] ?? ''));
 
+        $directionCode = trim((string)($input['direction_code'] ?? ''));
+        $directionTitle = trim((string)($input['direction_title'] ?? ''));
+        $disciplineName = trim((string)($input['discipline_name'] ?? ''));
+
         $normalized = [
             'id' => $id !== '' ? $id : bin2hex(random_bytes(8)),
             'owner_uid' => $ownerUid,
             'owner_path' => $this->normalizePath((string)($input['owner_path'] ?? '')),
             'title' => trim((string)($input['title'] ?? '')),
             'description' => trim((string)($input['description'] ?? '')),
-            'course_code' => trim((string)($input['course_code'] ?? '')),
+
+            'direction_code' => $directionCode,
+            'direction_title' => $directionTitle,
+            'discipline_name' => $disciplineName,
+
+            // legacy compatibility
+            'course_code' => $directionCode,
+
             'sensitivity' => $this->normalizeSensitivity((string)($input['sensitivity'] ?? 'learning')),
             'open_from' => trim((string)($input['open_from'] ?? '')),
             'due_until' => trim((string)($input['due_until'] ?? '')),
