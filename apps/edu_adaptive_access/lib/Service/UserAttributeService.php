@@ -30,9 +30,38 @@ class UserAttributeService {
             $role = 'student';
         }
 
-        $directionCode = $this->config->getUserValue($uid, Application::APP_ID, 'direction_code', '');
-        $directionTitle = $this->academicCatalogService->getDirectionTitle($directionCode);
+        $groupIds = $this->groupManager->getUserGroupIds($user);
+
+        $directionCode = '';
+        $directionTitle = '';
         $disciplineName = $this->config->getUserValue($uid, Application::APP_ID, 'discipline_name', '');
+        $academicGroupName = '';
+
+        if ($role === 'student') {
+            $resolved = $this->academicCatalogService->resolveStudentDirectionFromGroups(
+                $groupIds,
+                [
+                    $policy['students_group'],
+                    $policy['teachers_group'],
+                    'admin',
+                ]
+            );
+
+            $academicGroupName = $resolved['group_name'];
+            $directionCode = $resolved['direction_code'];
+            $directionTitle = $resolved['direction_title'];
+        } else {
+            $directionCode = $this->config->getUserValue($uid, Application::APP_ID, 'direction_code', '');
+            $directionTitle = $this->academicCatalogService->getDirectionTitle($directionCode);
+        }
+
+        $allowedDisciplines = $directionCode !== ''
+            ? $this->academicCatalogService->getDisciplinesForDirection($directionCode)
+            : [];
+
+        if ($disciplineName !== '' && !in_array($disciplineName, $allowedDisciplines, true)) {
+            $disciplineName = '';
+        }
 
         return [
             'uid' => $uid,
@@ -41,22 +70,38 @@ class UserAttributeService {
             'direction_code' => $directionCode,
             'direction_title' => $directionTitle,
             'discipline_name' => $disciplineName,
-            'managed_device' => $this->config->getUserValue($uid, Application::APP_ID, 'managed_device', '0') === '1',
-            'group_ids' => $this->groupManager->getUserGroupIds($user),
+            'academic_group_name' => $academicGroupName,
+            'group_ids' => $groupIds,
 
             // legacy compatibility
             'course_code' => $directionCode,
             'department' => '',
+            'managed_device' => false,
         ];
     }
 
     public function saveUserProfile(IUser $user, array $input): void {
         $uid = $user->getUID();
+        $profile = $this->getUserProfile($user);
 
-        $directionCode = trim((string)($input['direction_code'] ?? ''));
         $disciplineName = trim((string)($input['discipline_name'] ?? ''));
         $newDiscipline = trim((string)($input['new_discipline'] ?? ''));
-        $managedDevice = isset($input['managed_device']) ? '1' : '0';
+
+        if ($profile['role'] === 'student') {
+            $directionCode = $profile['direction_code'];
+            $allowedDisciplines = $directionCode !== ''
+                ? $this->academicCatalogService->getDisciplinesForDirection($directionCode)
+                : [];
+
+            if ($disciplineName !== '' && !in_array($disciplineName, $allowedDisciplines, true)) {
+                $disciplineName = '';
+            }
+
+            $this->config->setUserValue($uid, Application::APP_ID, 'discipline_name', $disciplineName);
+            return;
+        }
+
+        $directionCode = trim((string)($input['direction_code'] ?? ''));
 
         if ($directionCode !== '') {
             $directionTitle = $this->academicCatalogService->getDirectionTitle($directionCode);
@@ -82,6 +127,5 @@ class UserAttributeService {
 
         $this->config->setUserValue($uid, Application::APP_ID, 'direction_code', $directionCode);
         $this->config->setUserValue($uid, Application::APP_ID, 'discipline_name', $disciplineName);
-        $this->config->setUserValue($uid, Application::APP_ID, 'managed_device', $managedDevice);
     }
 }

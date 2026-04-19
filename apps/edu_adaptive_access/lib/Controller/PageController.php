@@ -55,6 +55,7 @@ class PageController extends Controller {
         $selectableFiles = $this->userFileBrowserService->listSelectableFiles($user);
         $directionOptions = $this->academicCatalogService->getDirectionOptions();
         $disciplineOptions = $this->academicCatalogService->getDisciplinesForDirection($profile['direction_code'] ?? '');
+        $groupDirectionMap = $this->academicCatalogService->getGroupDirectionMap();
 
         $resources = [];
         foreach ($this->resourceRegistryService->getAll() as $resource) {
@@ -84,6 +85,11 @@ class PageController extends Controller {
 
             $resources[] = $resource;
         }
+		
+		$directionTitleMap = [];
+		foreach ($directionOptions as $direction) {
+			$directionTitleMap[$direction['code']] = $direction['title'];
+		}
 
         return new TemplateResponse(Application::APP_ID, 'index', [
             'profile' => $profile,
@@ -92,13 +98,18 @@ class PageController extends Controller {
             'selectable_files' => $selectableFiles,
             'direction_options' => $directionOptions,
             'discipline_options' => $disciplineOptions,
+			'direction_title_map' => $directionTitleMap,
             'academic_catalog_json' => json_encode($this->academicCatalogService->getCatalog(), JSON_UNESCAPED_UNICODE),
+            'group_direction_map' => $groupDirectionMap,
             'is_admin' => $profile['role'] === 'admin',
-            'can_register_resource' => ($profile['direction_code'] ?? '') !== '' && ($profile['discipline_name'] ?? '') !== '',
+            'can_register_resource' => in_array($profile['role'], ['teacher', 'admin'], true)
+                && ($profile['direction_code'] ?? '') !== ''
+                && ($profile['discipline_name'] ?? '') !== '',
             'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
             'save_profile_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveProfile'),
             'save_global_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveGlobal'),
             'save_resource_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveResource'),
+            'save_academic_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveAcademic'),
             'delete_resource_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.deleteResource'),
         ]);
     }
@@ -125,12 +136,45 @@ class PageController extends Controller {
     }
 
     /**
+     * @AdminRequired
+     * @NoCSRFRequired
+     */
+    public function saveAcademic(): RedirectResponse {
+        $params = $this->request->getParams();
+
+        $newDirectionCode = trim((string)($params['new_direction_code'] ?? ''));
+        $newDirectionTitle = trim((string)($params['new_direction_title'] ?? ''));
+        $disciplineDirectionCode = trim((string)($params['discipline_direction_code'] ?? ''));
+        $newDisciplineName = trim((string)($params['new_discipline_name'] ?? ''));
+        $mapGroupName = trim((string)($params['map_group_name'] ?? ''));
+        $mapDirectionCode = trim((string)($params['map_direction_code'] ?? ''));
+
+        if ($newDirectionCode !== '' && $newDirectionTitle !== '') {
+            $this->academicCatalogService->addDirection($newDirectionCode, $newDirectionTitle);
+        }
+
+        if ($disciplineDirectionCode !== '' && $newDisciplineName !== '') {
+            $this->academicCatalogService->addDiscipline($disciplineDirectionCode, $newDisciplineName);
+        }
+
+        if ($mapGroupName !== '' && $mapDirectionCode !== '') {
+            $this->academicCatalogService->mapGroupToDirection($mapGroupName, $mapDirectionCode);
+        }
+
+        return $this->redirectToIndex();
+    }
+
+    /**
      * @NoAdminRequired
      * @NoCSRFRequired
      */
     public function saveResource(): RedirectResponse {
         $user = $this->requireUser();
         $profile = $this->userAttributeService->getUserProfile($user);
+
+        if (!in_array($profile['role'], ['teacher', 'admin'], true)) {
+            return $this->redirectToIndex();
+        }
 
         if (($profile['direction_code'] ?? '') === '' || ($profile['discipline_name'] ?? '') === '') {
             return $this->redirectToIndex();

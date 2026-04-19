@@ -6,6 +6,7 @@ return [
         ['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
         ['name' => 'page#saveProfile', 'url' => '/profile/save', 'verb' => 'POST'],
         ['name' => 'page#saveGlobal', 'url' => '/global/save', 'verb' => 'POST'],
+        ['name' => 'page#saveAcademic', 'url' => '/academic/save', 'verb' => 'POST'],
         ['name' => 'page#saveResource', 'url' => '/resources/save', 'verb' => 'POST'],
         ['name' => 'page#deleteResource', 'url' => '/resources/delete', 'verb' => 'POST'],
         ['name' => 'page#viewResource', 'url' => '/resources/{id}', 'verb' => 'GET'],

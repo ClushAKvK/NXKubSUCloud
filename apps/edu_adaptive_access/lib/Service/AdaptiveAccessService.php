@@ -29,12 +29,12 @@ class AdaptiveAccessService {
                 'risk' => 1.0,
                 'base_allowed' => false,
                 'subject' => $profile,
-                'context' => $this->buildContext($profile, $policy),
+                'context' => $this->buildContext($policy),
                 'reasons' => $reasons,
             ];
         }
 
-        $context = $this->buildContext($profile, $policy);
+        $context = $this->buildContext($policy);
         $risk = $this->calculateRisk($resource, $profile, $action, $context, $reasons);
 
         $decision = 'ALLOW';
@@ -58,14 +58,13 @@ class AdaptiveAccessService {
         ];
     }
 
-    private function buildContext(array $profile, array $policy): array {
+    private function buildContext(array $policy): array {
         $ip = $this->request->getRemoteAddress();
         $trustedNetwork = $this->cidrMatcher->matchesAny($ip, $this->policyConfigService->getTrustedCidrsAsArray());
 
         return [
             'ip' => $ip,
             'trusted_network' => $trustedNetwork,
-            'managed_device' => (bool)$profile['managed_device'],
             'mode' => $policy['mode'],
         ];
     }
@@ -179,13 +178,6 @@ class AdaptiveAccessService {
             $reasons[] = 'Недоверенная сеть';
         } else {
             $reasons[] = 'Доверенная сеть';
-        }
-
-        if (!$context['managed_device']) {
-            $risk += 0.20;
-            $reasons[] = 'Неуправляемое устройство';
-        } else {
-            $reasons[] = 'Управляемое устройство';
         }
 
         if ($context['mode'] === 'deadline') {

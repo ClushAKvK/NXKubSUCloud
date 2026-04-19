@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const directionSelect = document.getElementById('ea-direction-select')
     const disciplineSelect = document.getElementById('ea-discipline-select')
     const newDisciplineInput = document.getElementById('ea-new-discipline')
+    const profileRoleNode = document.getElementById('ea-profile-role')
 
     let titleTouchedByUser = false
 
@@ -86,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	}
     }
 
-    if (catalogNode && directionSelect && disciplineSelect) {
+    if (catalogNode && disciplineSelect) {
 	let catalog = {}
 
 	try {
@@ -96,6 +97,14 @@ document.addEventListener('DOMContentLoaded', function () {
 	}
 
 	const initialDiscipline = disciplineSelect.dataset.selected || ''
+	const role = profileRoleNode ? profileRoleNode.dataset.role : ''
+
+	const resolveDirectionCode = () => {
+	    if (directionSelect) {
+		return directionSelect.value
+	    }
+	    return disciplineSelect.dataset.direction || ''
+	}
 
 	const buildDisciplineOptions = (directionCode, preferredValue = '') => {
 	    const disciplines = Array.isArray(catalog[directionCode]?.disciplines)
@@ -128,11 +137,13 @@ document.addEventListener('DOMContentLoaded', function () {
 	    }
 	}
 
-	directionSelect.addEventListener('change', function () {
-	    buildDisciplineOptions(directionSelect.value, '')
-	})
+	if (directionSelect) {
+	    directionSelect.addEventListener('change', function () {
+		buildDisciplineOptions(directionSelect.value, '')
+	    })
+	}
 
-	if (newDisciplineInput) {
+	if (newDisciplineInput && role !== 'student') {
 	    newDisciplineInput.addEventListener('input', function () {
 		if (newDisciplineInput.value.trim() !== '') {
 		    disciplineSelect.value = ''
@@ -140,6 +151,6 @@ document.addEventListener('DOMContentLoaded', function () {
 	    })
 	}
 
-	buildDisciplineOptions(directionSelect.value, initialDiscipline)
+	buildDisciplineOptions(resolveDirectionCode(), initialDiscipline)
     }
 })
