@@ -10,6 +10,7 @@ return [
         ['name' => 'page#deleteResource', 'url' => '/resources/delete', 'verb' => 'POST'],
         ['name' => 'page#viewResource', 'url' => '/resources/{id}', 'verb' => 'GET'],
         ['name' => 'page#readResource', 'url' => '/resources/{id}/read', 'verb' => 'GET'],
+        ['name' => 'page#streamResource', 'url' => '/resources/{id}/stream', 'verb' => 'GET'],
         ['name' => 'page#downloadResource', 'url' => '/resources/{id}/download', 'verb' => 'GET'],
     ],
 ];

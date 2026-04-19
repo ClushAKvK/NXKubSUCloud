@@ -3,6 +3,7 @@
 /** @var array $profile */
 /** @var array $policy */
 /** @var array $resources */
+/** @var array $selectable_files */
 /** @var bool $is_admin */
 /** @var string $save_profile_url */
 /** @var string $save_global_url */
@@ -76,9 +77,9 @@
     <section class="ea-card">
         <h2>Регистрация учебного ресурса</h2>
         <p class="ea-note">
-            Сначала загрузите файл в обычный Nextcloud Files, затем здесь укажите путь относительно корня ваших файлов,
-            например: <code>/Учебные/ML/lecture1.pdf</code>
-        </p>
+			Сначала загрузите файл в обычное хранилище Nextcloud Files.
+			Затем выберите его из списка ниже — путь подставится автоматически.
+		</p>
 
         <form method="post" action="<?= htmlspecialchars($save_resource_url) ?>" class="ea-resource-form">
             <div class="ea-two-cols">
@@ -86,8 +87,36 @@
                     <label>Название</label>
                     <input type="text" name="title" required placeholder="Лекция 1"/>
 
-                    <label>Путь к файлу</label>
-                    <input type="text" name="owner_path" required placeholder="/Учебные/ML/lecture1.pdf"/>
+                    <label>Файл из основного хранилища</label>
+					<input type="hidden" name="owner_path" id="ea-owner-path" required />
+
+					<div class="ea-file-picker">
+						<input
+							type="text"
+							id="ea-file-filter"
+							class="ea-file-filter"
+							placeholder="Фильтр по имени или пути"
+							autocomplete="off"
+						/>
+
+						<select id="ea-file-select" class="ea-file-select" size="10">
+							<?php foreach ($selectable_files as $file): ?>
+								<option
+									value="<?= htmlspecialchars($file['path']) ?>"
+									data-path="<?= htmlspecialchars($file['path']) ?>"
+									data-ext="<?= htmlspecialchars($file['extension']) ?>"
+								>
+									<?= htmlspecialchars($file['path']) ?>
+									<?php if (!empty($file['browser_readable'])): ?> [PDF / browser-read]<?php endif; ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+
+						<div class="ea-file-selected">
+							<strong>Выбранный файл:</strong>
+							<span id="ea-file-selected-text">Файл не выбран</span>
+						</div>
+					</div>
 
                     <label>Курс / дисциплина</label>
                     <input type="text" name="course_code" required placeholder="ML-2026"/>
