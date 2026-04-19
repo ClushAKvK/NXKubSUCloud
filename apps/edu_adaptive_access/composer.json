@@ -1,0 +1,11 @@
+{
+  "name": "nxkubsu/edu-adaptive-access",
+  "description": "MVP adaptive access app for educational resources",
+  "type": "project",
+  "license": "AGPL-3.0-or-later",
+  "autoload": {
+    "psr-4": {
+      "OCA\\EduAdaptiveAccess\\": "lib/"
+    }
+  }
+}
