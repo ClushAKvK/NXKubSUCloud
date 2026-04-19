@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>edu_adaptive_access</id>
+    <name>Adaptive Education Access</name>
+    <summary>MVP адаптивного доступа к образовательным ресурсам</summary>
+    <description>
+        Демонстрационное приложение для образовательного облачного хранилища с адаптивным доступом
+        на основе атрибутов пользователя, ресурса и контекста.
+    </description>
+    <version>0.1.0</version>
+    <licence>agpl</licence>
+    <author>Semen / NXKubSUCloud MVP</author>
+    <namespace>EduAdaptiveAccess</namespace>
+    <category>files</category>
+
+    <dependencies>
+        <nextcloud min-version="28" max-version="29"/>
+    </dependencies>
+
+    <navigations>
+        <navigation>
+            <name>Adaptive Access</name>
+            <route>edu_adaptive_access.page.index</route>
+            <order>70</order>
+            <icon>app.svg</icon>
+            <type>link</type>
+        </navigation>
+    </navigations>
+</info>

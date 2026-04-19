@@ -1,0 +1,263 @@
+<?php
+declare(strict_types=1);
+
+namespace OCA\EduAdaptiveAccess\Controller;
+
+use OCA\EduAdaptiveAccess\AppInfo\Application;
+use OCA\EduAdaptiveAccess\Service\AdaptiveAccessService;
+use OCA\EduAdaptiveAccess\Service\PolicyConfigService;
+use OCA\EduAdaptiveAccess\Service\ResourceRegistryService;
+use OCA\EduAdaptiveAccess\Service\UserAttributeService;
+use OCP\AppFramework\Controller;
+use OCP\AppFramework\Http\DataDownloadResponse;
+use OCP\AppFramework\Http\RedirectResponse;
+use OCP\AppFramework\Http\TemplateResponse;
+use OCP\Files\File;
+use OCP\Files\IRootFolder;
+use OCP\Files\NotFoundException;
+use OCP\IRequest;
+use OCP\IURLGenerator;
+use OCP\IUserSession;
+use OCP\Util;
+
+class PageController extends Controller {
+    public function __construct(
+        string $appName,
+        IRequest $request,
+        private IUserSession $userSession,
+        private IURLGenerator $urlGenerator,
+        private PolicyConfigService $policyConfigService,
+        private UserAttributeService $userAttributeService,
+        private ResourceRegistryService $resourceRegistryService,
+        private AdaptiveAccessService $adaptiveAccessService,
+        private IRootFolder $rootFolder,
+    ) {
+        parent::__construct($appName, $request);
+    }
+
+    /**
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     */
+    public function index(): TemplateResponse {
+        Util::addStyle(Application::APP_ID, 'style');
+
+        $user = $this->requireUser();
+        $profile = $this->userAttributeService->getUserProfile($user);
+        $policy = $this->policyConfigService->getGlobalPolicy();
+
+        $resources = [];
+        foreach ($this->resourceRegistryService->getAll() as $resource) {
+            $resource['read_eval'] = $this->adaptiveAccessService->evaluate($resource, $user, 'read');
+            $resource['download_eval'] = $this->adaptiveAccessService->evaluate($resource, $user, 'download');
+            $resource['view_url'] = $this->urlGenerator->linkToRoute(
+                Application::APP_ID . '.page.viewResource',
+                ['id' => $resource['id']]
+            );
+            $resource['download_url'] = $this->urlGenerator->linkToRoute(
+                Application::APP_ID . '.page.downloadResource',
+                ['id' => $resource['id']]
+            );
+            $resources[] = $resource;
+        }
+
+        return new TemplateResponse(Application::APP_ID, 'index', [
+            'profile' => $profile,
+            'policy' => $policy,
+            'resources' => $resources,
+            'is_admin' => $profile['role'] === 'admin',
+            'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+            'save_profile_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveProfile'),
+            'save_global_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveGlobal'),
+            'save_resource_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveResource'),
+            'delete_resource_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.deleteResource'),
+        ]);
+    }
+
+    /**
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     */
+    public function saveProfile(): RedirectResponse {
+        $user = $this->requireUser();
+        $this->userAttributeService->saveUserProfile($user, $this->request->getParams());
+
+        return $this->redirectToIndex();
+    }
+
+    /**
+     * @AdminRequired
+     * @NoCSRFRequired
+     */
+    public function saveGlobal(): RedirectResponse {
+        $this->policyConfigService->saveGlobalPolicy($this->request->getParams());
+
+        return $this->redirectToIndex();
+    }
+
+    /**
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     */
+    public function saveResource(): RedirectResponse {
+        $user = $this->requireUser();
+
+        $params = $this->request->getParams();
+        $path = trim((string)($params['owner_path'] ?? ''));
+
+        if ($path !== '') {
+            try {
+                $userFolder = $this->rootFolder->getUserFolder($user->getUID());
+                $userFolder->get($path[0] === '/' ? substr($path, 1) : $path);
+            } catch (\Throwable $e) {
+                // Для MVP не валим процесс, но лучше сразу исправить путь.
+            }
+        }
+
+        $this->resourceRegistryService->save($params, $user->getUID());
+
+        return $this->redirectToIndex();
+    }
+
+    /**
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     */
+    public function deleteResource(): RedirectResponse {
+        $user = $this->requireUser();
+        $resourceId = (string)$this->request->getParam('id', '');
+        $resource = $this->resourceRegistryService->getById($resourceId);
+
+        if ($resource !== null) {
+            $profile = $this->userAttributeService->getUserProfile($user);
+            $isOwner = ($resource['owner_uid'] ?? '') === $user->getUID();
+
+            if ($isOwner || $profile['role'] === 'admin') {
+                $this->resourceRegistryService->delete($resourceId);
+            }
+        }
+
+        return $this->redirectToIndex();
+    }
+
+    /**
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     */
+    public function viewResource(string $id): TemplateResponse {
+        Util::addStyle(Application::APP_ID, 'style');
+
+        $user = $this->requireUser();
+        $resource = $this->resourceRegistryService->getById($id);
+
+        if ($resource === null) {
+            return new TemplateResponse(Application::APP_ID, 'resource', [
+                'resource' => null,
+                'message' => 'Ресурс не найден',
+                'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+            ]);
+        }
+
+        return new TemplateResponse(Application::APP_ID, 'resource', [
+            'resource' => $resource,
+            'read_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'read'),
+            'download_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'download'),
+            'download_url' => $this->urlGenerator->linkToRoute(
+                Application::APP_ID . '.page.downloadResource',
+                ['id' => $resource['id']]
+            ),
+            'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+            'message' => '',
+        ]);
+    }
+
+    /**
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     */
+    public function downloadResource(string $id) {
+        $user = $this->requireUser();
+        $resource = $this->resourceRegistryService->getById($id);
+
+        if ($resource === null) {
+            return new TemplateResponse(Application::APP_ID, 'resource', [
+                'resource' => null,
+                'message' => 'Ресурс не найден',
+                'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+            ]);
+        }
+
+        $downloadEval = $this->adaptiveAccessService->evaluate($resource, $user, 'download');
+
+        if ($downloadEval['decision'] !== 'ALLOW') {
+            Util::addStyle(Application::APP_ID, 'style');
+
+            return new TemplateResponse(Application::APP_ID, 'resource', [
+                'resource' => $resource,
+                'read_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'read'),
+                'download_eval' => $downloadEval,
+                'download_url' => $this->urlGenerator->linkToRoute(
+                    Application::APP_ID . '.page.downloadResource',
+                    ['id' => $resource['id']]
+                ),
+                'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+                'message' => $downloadEval['decision'] === 'STEP_UP'
+                    ? 'Скачивание переведено в STEP_UP и для MVP заблокировано'
+                    : 'Скачивание запрещено',
+            ]);
+        }
+
+        try {
+            $userFolder = $this->rootFolder->getUserFolder((string)$resource['owner_uid']);
+            $relativePath = ltrim((string)$resource['owner_path'], '/');
+            $node = $userFolder->get($relativePath);
+
+            if (!$node instanceof File) {
+                return new TemplateResponse(Application::APP_ID, 'resource', [
+                    'resource' => $resource,
+                    'read_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'read'),
+                    'download_eval' => $downloadEval,
+                    'download_url' => $this->urlGenerator->linkToRoute(
+                        Application::APP_ID . '.page.downloadResource',
+                        ['id' => $resource['id']]
+                    ),
+                    'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+                    'message' => 'Указанный путь не ведёт к файлу',
+                ]);
+            }
+
+            return new DataDownloadResponse(
+                $node->getContent(),
+                $node->getName(),
+                $node->getMimeType()
+            );
+        } catch (NotFoundException $e) {
+            return new TemplateResponse(Application::APP_ID, 'resource', [
+                'resource' => $resource,
+                'read_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'read'),
+                'download_eval' => $downloadEval,
+                'download_url' => $this->urlGenerator->linkToRoute(
+                    Application::APP_ID . '.page.downloadResource',
+                    ['id' => $resource['id']]
+                ),
+                'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+                'message' => 'Файл по указанному пути не найден',
+            ]);
+        }
+    }
+
+    private function requireUser() {
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            throw new \RuntimeException('User must be logged in');
+        }
+
+        return $user;
+    }
+
+    private function redirectToIndex(): RedirectResponse {
+        return new RedirectResponse(
+            $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index')
+        );
+    }
+}
