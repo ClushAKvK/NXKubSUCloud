@@ -142,30 +142,40 @@
                             </div>
                         </div>
                         <div class="ea-actions">
-                            <a class="button button-primary" href="<?= htmlspecialchars($resource['view_url']) ?>">Открыть карточку</a>
-                            <a class="button" href="<?= htmlspecialchars($resource['download_url']) ?>">Скачать</a>
-                        </div>
+    <a class="button" href="<?= htmlspecialchars($resource['view_url']) ?>">Открыть карточку</a>
+
+    <?php if (!empty($resource['supports_browser_read'])): ?>
+        <a class="button button-primary"
+           href="<?= htmlspecialchars($resource['read_url']) ?>"
+           target="_blank"
+           rel="noopener noreferrer">Читать в браузере</a>
+    <?php endif; ?>
+
+    <a class="button" href="<?= htmlspecialchars($resource['download_url']) ?>">Скачать</a>
+</div>
                     </div>
 
                     <p><?= nl2br(htmlspecialchars($resource['description'] ?? '')) ?></p>
 
-                    <div class="ea-evals">
-                        <div class="ea-eval">
-                            <strong>READ</strong>
-                            <span class="ea-decision ea-<?= strtolower($resource['read_eval']['decision']) ?>">
-                                <?= htmlspecialchars($resource['read_eval']['decision']) ?>
-                            </span>
-                            <span>Risk: <?= htmlspecialchars((string)$resource['read_eval']['risk']) ?></span>
-                        </div>
+<div class="ea-evals">
+    <?php if (!empty($resource['supports_browser_read'])): ?>
+        <div class="ea-eval">
+            <strong>READ (PDF)</strong>
+            <span class="ea-decision ea-<?= strtolower($resource['read_eval']['decision']) ?>">
+                <?= htmlspecialchars($resource['read_eval']['decision']) ?>
+            </span>
+            <span>Risk: <?= htmlspecialchars((string)$resource['read_eval']['risk']) ?></span>
+        </div>
+    <?php endif; ?>
 
-                        <div class="ea-eval">
-                            <strong>DOWNLOAD</strong>
-                            <span class="ea-decision ea-<?= strtolower($resource['download_eval']['decision']) ?>">
-                                <?= htmlspecialchars($resource['download_eval']['decision']) ?>
-                            </span>
-                            <span>Risk: <?= htmlspecialchars((string)$resource['download_eval']['risk']) ?></span>
-                        </div>
-                    </div>
+    <div class="ea-eval">
+        <strong>DOWNLOAD</strong>
+        <span class="ea-decision ea-<?= strtolower($resource['download_eval']['decision']) ?>">
+            <?= htmlspecialchars($resource['download_eval']['decision']) ?>
+        </span>
+        <span>Risk: <?= htmlspecialchars((string)$resource['download_eval']['risk']) ?></span>
+    </div>
+</div>
 
                     <details>
                         <summary>Пояснение решения</summary>

@@ -12,6 +12,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\RedirectResponse;
 use OCP\AppFramework\Http\TemplateResponse;
+use OCP\AppFramework\Http\DataDisplayResponse;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
@@ -48,18 +49,27 @@ class PageController extends Controller {
 
         $resources = [];
         foreach ($this->resourceRegistryService->getAll() as $resource) {
-            $resource['read_eval'] = $this->adaptiveAccessService->evaluate($resource, $user, 'read');
-            $resource['download_eval'] = $this->adaptiveAccessService->evaluate($resource, $user, 'download');
-            $resource['view_url'] = $this->urlGenerator->linkToRoute(
-                Application::APP_ID . '.page.viewResource',
-                ['id' => $resource['id']]
-            );
-            $resource['download_url'] = $this->urlGenerator->linkToRoute(
-                Application::APP_ID . '.page.downloadResource',
-                ['id' => $resource['id']]
-            );
-            $resources[] = $resource;
-        }
+			$resource['read_eval'] = $this->adaptiveAccessService->evaluate($resource, $user, 'read');
+			$resource['download_eval'] = $this->adaptiveAccessService->evaluate($resource, $user, 'download');
+			$resource['supports_browser_read'] = $this->supportsBrowserRead($resource);
+
+			$resource['view_url'] = $this->urlGenerator->linkToRoute(
+				Application::APP_ID . '.page.viewResource',
+				['id' => $resource['id']]
+			);
+
+			$resource['read_url'] = $this->urlGenerator->linkToRoute(
+				Application::APP_ID . '.page.readResource',
+				['id' => $resource['id']]
+			);
+
+			$resource['download_url'] = $this->urlGenerator->linkToRoute(
+				Application::APP_ID . '.page.downloadResource',
+				['id' => $resource['id']]
+			);
+
+			$resources[] = $resource;
+		}
 
         return new TemplateResponse(Application::APP_ID, 'index', [
             'profile' => $profile,
@@ -141,35 +151,43 @@ class PageController extends Controller {
     }
 
     /**
-     * @NoAdminRequired
-     * @NoCSRFRequired
-     */
-    public function viewResource(string $id): TemplateResponse {
-        Util::addStyle(Application::APP_ID, 'style');
+	 * @NoAdminRequired
+	 * @NoCSRFRequired
+	 */
+	public function viewResource(string $id): TemplateResponse {
+		Util::addStyle(Application::APP_ID, 'style');
 
-        $user = $this->requireUser();
-        $resource = $this->resourceRegistryService->getById($id);
+		$user = $this->requireUser();
+		$resource = $this->resourceRegistryService->getById($id);
 
-        if ($resource === null) {
-            return new TemplateResponse(Application::APP_ID, 'resource', [
-                'resource' => null,
-                'message' => 'Ресурс не найден',
-                'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
-            ]);
-        }
+		if ($resource === null) {
+			return new TemplateResponse(Application::APP_ID, 'resource', [
+				'resource' => null,
+				'message' => 'Ресурс не найден',
+				'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+				'supports_browser_read' => false,
+				'read_url' => '',
+				'download_url' => '',
+			]);
+		}
 
-        return new TemplateResponse(Application::APP_ID, 'resource', [
-            'resource' => $resource,
-            'read_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'read'),
-            'download_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'download'),
-            'download_url' => $this->urlGenerator->linkToRoute(
-                Application::APP_ID . '.page.downloadResource',
-                ['id' => $resource['id']]
-            ),
-            'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
-            'message' => '',
-        ]);
-    }
+		return new TemplateResponse(Application::APP_ID, 'resource', [
+			'resource' => $resource,
+			'read_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'read'),
+			'download_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'download'),
+			'supports_browser_read' => $this->supportsBrowserRead($resource),
+			'read_url' => $this->urlGenerator->linkToRoute(
+				Application::APP_ID . '.page.readResource',
+				['id' => $resource['id']]
+			),
+			'download_url' => $this->urlGenerator->linkToRoute(
+				Application::APP_ID . '.page.downloadResource',
+				['id' => $resource['id']]
+			),
+			'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+			'message' => '',
+		]);
+	}
 
     /**
      * @NoAdminRequired
@@ -245,6 +263,121 @@ class PageController extends Controller {
             ]);
         }
     }
+	
+	/**
+	 * @NoAdminRequired
+	 * @NoCSRFRequired
+	 */
+	public function readResource(string $id) {
+		$user = $this->requireUser();
+		$resource = $this->resourceRegistryService->getById($id);
+
+		if ($resource === null) {
+			Util::addStyle(Application::APP_ID, 'style');
+
+			return new TemplateResponse(Application::APP_ID, 'resource', [
+				'resource' => null,
+				'message' => 'Ресурс не найден',
+				'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+				'supports_browser_read' => false,
+				'read_url' => '',
+				'download_url' => '',
+			]);
+		}
+
+		$readEval = $this->adaptiveAccessService->evaluate($resource, $user, 'read');
+
+		if ($readEval['decision'] !== 'ALLOW') {
+			Util::addStyle(Application::APP_ID, 'style');
+
+			return new TemplateResponse(Application::APP_ID, 'resource', [
+				'resource' => $resource,
+				'read_eval' => $readEval,
+				'download_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'download'),
+				'supports_browser_read' => $this->supportsBrowserRead($resource),
+				'read_url' => $this->urlGenerator->linkToRoute(
+					Application::APP_ID . '.page.readResource',
+					['id' => $resource['id']]
+				),
+				'download_url' => $this->urlGenerator->linkToRoute(
+					Application::APP_ID . '.page.downloadResource',
+					['id' => $resource['id']]
+				),
+				'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+				'message' => $readEval['decision'] === 'STEP_UP'
+					? 'Чтение в браузере переведено в STEP_UP и для MVP заблокировано'
+					: 'Чтение в браузере запрещено',
+			]);
+		}
+
+		if (!$this->supportsBrowserRead($resource)) {
+			Util::addStyle(Application::APP_ID, 'style');
+
+			return new TemplateResponse(Application::APP_ID, 'resource', [
+				'resource' => $resource,
+				'read_eval' => $readEval,
+				'download_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'download'),
+				'supports_browser_read' => false,
+				'read_url' => '',
+				'download_url' => $this->urlGenerator->linkToRoute(
+					Application::APP_ID . '.page.downloadResource',
+					['id' => $resource['id']]
+				),
+				'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+				'message' => 'Для текущего MVP чтение в браузере поддержано только для PDF.',
+			]);
+		}
+
+		try {
+			$userFolder = $this->rootFolder->getUserFolder((string)$resource['owner_uid']);
+			$relativePath = ltrim((string)$resource['owner_path'], '/');
+			$node = $userFolder->get($relativePath);
+
+			if (!$node instanceof File) {
+				Util::addStyle(Application::APP_ID, 'style');
+
+				return new TemplateResponse(Application::APP_ID, 'resource', [
+					'resource' => $resource,
+					'read_eval' => $readEval,
+					'download_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'download'),
+					'supports_browser_read' => $this->supportsBrowserRead($resource),
+					'read_url' => '',
+					'download_url' => $this->urlGenerator->linkToRoute(
+						Application::APP_ID . '.page.downloadResource',
+						['id' => $resource['id']]
+					),
+					'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+					'message' => 'Указанный путь не ведёт к файлу',
+				]);
+			}
+
+			$response = new DataDisplayResponse(
+				$node->getContent(),
+				$node->getMimeType()
+			);
+
+			$safeFilename = str_replace('"', '', $node->getName());
+			$response->addHeader('Content-Disposition', 'inline; filename="' . $safeFilename . '"');
+
+			return $response;
+		} catch (NotFoundException $e) {
+			Util::addStyle(Application::APP_ID, 'style');
+
+			return new TemplateResponse(Application::APP_ID, 'resource', [
+				'resource' => $resource,
+				'read_eval' => $readEval,
+				'download_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'download'),
+				'supports_browser_read' => $this->supportsBrowserRead($resource),
+				'read_url' => '',
+				'download_url' => $this->urlGenerator->linkToRoute(
+					Application::APP_ID . '.page.downloadResource',
+					['id' => $resource['id']]
+				),
+				'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+				'message' => 'Файл по указанному пути не найден',
+			]);
+		}
+	}
 
     private function requireUser() {
         $user = $this->userSession->getUser();
@@ -260,4 +393,11 @@ class PageController extends Controller {
             $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index')
         );
     }
+	
+	private function supportsBrowserRead(array $resource): bool {
+		$path = (string)($resource['owner_path'] ?? '');
+		$extension = strtolower((string)pathinfo($path, PATHINFO_EXTENSION));
+
+		return $extension === 'pdf';
+	}
 }
