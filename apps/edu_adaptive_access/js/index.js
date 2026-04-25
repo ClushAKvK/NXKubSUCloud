@@ -13,6 +13,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const newDisciplineInput = document.getElementById('ea-new-discipline')
     const profileRoleNode = document.getElementById('ea-profile-role')
 
+    const targetScopeSelect = document.getElementById('ea-target-scope')
+    const targetGroupWrap = document.getElementById('ea-target-group-wrap')
+    const targetGroupSelect = document.getElementById('ea-target-group')
+
+    const postStepUpNode = document.getElementById('ea-stepup-post-action')
+
     let titleTouchedByUser = false
 
     if (titleInput) {
@@ -152,5 +158,39 @@ document.addEventListener('DOMContentLoaded', function () {
 	}
 
 	buildDisciplineOptions(resolveDirectionCode(), initialDiscipline)
+    }
+
+    const syncTargetGroupVisibility = () => {
+	if (!targetScopeSelect || !targetGroupWrap || !targetGroupSelect) {
+	    return
+	}
+
+	const isGroupMode = targetScopeSelect.value === 'group'
+	targetGroupWrap.style.display = isGroupMode ? 'block' : 'none'
+
+	if (!isGroupMode) {
+	    targetGroupSelect.value = ''
+	}
+    }
+
+    if (targetScopeSelect && targetGroupWrap && targetGroupSelect) {
+	targetScopeSelect.addEventListener('change', syncTargetGroupVisibility)
+	syncTargetGroupVisibility()
+    }
+
+    if (postStepUpNode) {
+	const downloadUrl = postStepUpNode.dataset.downloadUrl || ''
+	const success = postStepUpNode.dataset.success === '1'
+
+	if (success && downloadUrl) {
+	    const iframe = document.createElement('iframe')
+	    iframe.style.display = 'none'
+	    iframe.src = downloadUrl
+	    document.body.appendChild(iframe)
+
+	    window.setTimeout(() => {
+		iframe.remove()
+	    }, 10000)
+	}
     }
 })

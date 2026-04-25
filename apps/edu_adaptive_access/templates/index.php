@@ -8,6 +8,7 @@
 /** @var array $discipline_options */
 /** @var array $group_direction_map */
 /** @var array $direction_title_map */
+/** @var array $context_group_options */
 /** @var string $academic_catalog_json */
 /** @var bool $is_admin */
 /** @var bool $can_register_resource */
@@ -16,10 +17,17 @@
 /** @var string $save_academic_url */
 /** @var string $save_resource_url */
 /** @var string $delete_resource_url */
+/** @var string $post_stepup_download_url */
+/** @var bool $post_stepup_success */
 ?>
 
 <div id="ea-catalog-data" data-catalog="<?= htmlspecialchars($academic_catalog_json, ENT_QUOTES, 'UTF-8') ?>"></div>
 <div id="ea-profile-role" data-role="<?= htmlspecialchars($profile['role']) ?>"></div>
+<div
+    id="ea-stepup-post-action"
+    data-download-url="<?= htmlspecialchars($post_stepup_download_url, ENT_QUOTES, 'UTF-8') ?>"
+    data-success="<?= $post_stepup_success ? '1' : '0' ?>">
+</div>
 
 <div class="ea-app-scroll">
     <div class="ea-wrap">
@@ -27,6 +35,12 @@
         <p class="ea-subtitle">
             Демонстрационный слой адаптивного доступа для образовательных ресурсов поверх Nextcloud.
         </p>
+
+        <?php if ($post_stepup_success): ?>
+            <div class="ea-alert">
+                Дополнительное подтверждение выполнено успешно.
+            </div>
+        <?php endif; ?>
 
         <div class="ea-grid">
             <section class="ea-card">
@@ -212,10 +226,10 @@
                                 <span>Группа: <?= htmlspecialchars($groupName) ?></span>
                                 <span>Направление: <?= htmlspecialchars($directionCode) ?></span>
                                 <span>
-									<?= htmlspecialchars(
-										$directionCode . ' — ' . ($direction_title_map[$directionCode] ?? 'Неизвестное направление')
-									) ?>
-								</span>
+                                    <?= htmlspecialchars(
+                                        $directionCode . ' — ' . ($direction_title_map[$directionCode] ?? 'Неизвестное направление')
+                                    ) ?>
+                                </span>
                             </div>
                         </article>
                     <?php endforeach; ?>
@@ -224,122 +238,147 @@
         <?php endif; ?>
 
         <?php if ($profile['role'] !== 'student'): ?>
-			<section class="ea-card">
-				<h2>Регистрация учебного ресурса</h2>
-				<p class="ea-note">
-					Сначала загрузите файл в обычное хранилище Nextcloud Files.
-					Затем выберите его из списка ниже — путь подставится автоматически.
-				</p>
+            <section class="ea-card">
+                <h2>Регистрация учебного ресурса</h2>
+                <p class="ea-note">
+                    Сначала загрузите файл в обычное хранилище Nextcloud Files.
+                    Затем выберите его из списка ниже — путь подставится автоматически.
+                </p>
 
-				<div class="ea-context-summary">
-					<div class="ea-context-summary-item">
-						<span>Текущее направление</span>
-						<strong>
-							<?= $profile['direction_code'] !== ''
-								? htmlspecialchars($profile['direction_code'] . ' — ' . $profile['direction_title'])
-								: 'Не выбрано' ?>
-						</strong>
-					</div>
+                <div class="ea-context-summary">
+                    <div class="ea-context-summary-item">
+                        <span>Текущее направление</span>
+                        <strong>
+                            <?= $profile['direction_code'] !== ''
+                                ? htmlspecialchars($profile['direction_code'] . ' — ' . $profile['direction_title'])
+                                : 'Не выбрано' ?>
+                        </strong>
+                    </div>
 
-					<div class="ea-context-summary-item">
-						<span>Текущая дисциплина</span>
-						<strong><?= $profile['discipline_name'] !== '' ? htmlspecialchars($profile['discipline_name']) : 'Не выбрана' ?></strong>
-					</div>
-				</div>
+                    <div class="ea-context-summary-item">
+                        <span>Текущая дисциплина</span>
+                        <strong><?= $profile['discipline_name'] !== '' ? htmlspecialchars($profile['discipline_name']) : 'Не выбрана' ?></strong>
+                    </div>
+                </div>
 
-				<?php if (!$can_register_resource): ?>
-					<div class="ea-alert">
-						Перед регистрацией ресурса выберите в активном учебном контексте направление и дисциплину.
-					</div>
-				<?php endif; ?>
+                <?php if (!$can_register_resource): ?>
+                    <div class="ea-alert">
+                        Перед регистрацией ресурса выберите в активном учебном контексте направление и дисциплину.
+                    </div>
+                <?php endif; ?>
 
-				<form method="post" action="<?= htmlspecialchars($save_resource_url) ?>" class="ea-resource-form">
-					<input type="hidden" name="owner_path" id="ea-owner-path" required />
+                <form method="post" action="<?= htmlspecialchars($save_resource_url) ?>" class="ea-resource-form">
+                    <input type="hidden" name="owner_path" id="ea-owner-path" required />
 
-					<label>Название</label>
-					<input
-						type="text"
-						name="title"
-						id="ea-resource-title"
-						required
-						placeholder="Название ресурса"
-					/>
+                    <label>Название</label>
+                    <input
+                        type="text"
+                        name="title"
+                        id="ea-resource-title"
+                        required
+                        placeholder="Название ресурса"
+                    />
 
-					<label>Файл из основного хранилища</label>
+                    <label>Файл из основного хранилища</label>
 
-					<div class="ea-file-picker">
-						<input
-							type="text"
-							id="ea-file-filter"
-							class="ea-file-filter"
-							placeholder="Фильтр по имени или пути"
-							autocomplete="off"
-						/>
+                    <div class="ea-file-picker">
+                        <input
+                            type="text"
+                            id="ea-file-filter"
+                            class="ea-file-filter"
+                            placeholder="Фильтр по имени или пути"
+                            autocomplete="off"
+                        />
 
-						<select id="ea-file-select" class="ea-file-select" size="16">
-							<?php foreach ($selectable_files as $file): ?>
-								<option
-									value="<?= htmlspecialchars($file['path']) ?>"
-									data-path="<?= htmlspecialchars($file['path']) ?>"
-									data-name="<?= htmlspecialchars($file['name']) ?>"
-									data-ext="<?= htmlspecialchars($file['extension']) ?>"
-								>
-									<?= htmlspecialchars($file['path']) ?>
-									<?php if (!empty($file['browser_readable'])): ?> [PDF / browser-read]<?php endif; ?>
-								</option>
-							<?php endforeach; ?>
-						</select>
+                        <select id="ea-file-select" class="ea-file-select" size="16">
+                            <?php foreach ($selectable_files as $file): ?>
+                                <option
+                                    value="<?= htmlspecialchars($file['path']) ?>"
+                                    data-path="<?= htmlspecialchars($file['path']) ?>"
+                                    data-name="<?= htmlspecialchars($file['name']) ?>"
+                                    data-ext="<?= htmlspecialchars($file['extension']) ?>"
+                                >
+                                    <?= htmlspecialchars($file['path']) ?>
+                                    <?php if (!empty($file['browser_readable'])): ?> [PDF / browser-read]<?php endif; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
 
-						<div class="ea-file-selected">
-							<div class="ea-selected-row">
-								<div class="ea-selected-label">Автоподстановка названия</div>
-								<div class="ea-selected-value" id="ea-resource-title-preview">Файл не выбран</div>
-							</div>
+                        <div class="ea-file-selected">
+                            <div class="ea-selected-row">
+                                <div class="ea-selected-label">Автоподстановка названия</div>
+                                <div class="ea-selected-value" id="ea-resource-title-preview">Файл не выбран</div>
+                            </div>
 
-							<div class="ea-selected-row">
-								<div class="ea-selected-label">Имя файла</div>
-								<div class="ea-selected-value" id="ea-file-name-preview">—</div>
-							</div>
+                            <div class="ea-selected-row">
+                                <div class="ea-selected-label">Имя файла</div>
+                                <div class="ea-selected-value" id="ea-file-name-preview">—</div>
+                            </div>
 
-							<div class="ea-selected-row">
-								<div class="ea-selected-label">Полный путь</div>
-								<div class="ea-selected-value" id="ea-file-selected-text">Файл не выбран</div>
-							</div>
-						</div>
-					</div>
+                            <div class="ea-selected-row">
+                                <div class="ea-selected-label">Полный путь</div>
+                                <div class="ea-selected-value" id="ea-file-selected-text">Файл не выбран</div>
+                            </div>
+                        </div>
+                    </div>
 
-					<div class="ea-two-cols">
-						<div>
-							<label>Класс чувствительности</label>
-							<select name="sensitivity">
-								<option value="public">public</option>
-								<option value="learning" selected>learning</option>
-								<option value="personal">personal</option>
-								<option value="exam">exam</option>
-							</select>
-						</div>
+                    <div class="ea-two-cols">
+                        <div>
+                            <label>Класс чувствительности</label>
+                            <select name="sensitivity">
+                                <option value="public">public</option>
+                                <option value="learning" selected>learning</option>
+                                <option value="personal">personal</option>
+                                <option value="exam">exam</option>
+                            </select>
 
-						<div>
-							<label>Открыть не раньше</label>
-							<input type="datetime-local" name="open_from"/>
+                            <label>Статус публикации</label>
+                            <select name="publication_status">
+                                <option value="published" selected>published</option>
+                                <option value="draft">draft</option>
+                            </select>
 
-							<label>Дедлайн / срок действия</label>
-							<input type="datetime-local" name="due_until"/>
-						</div>
-					</div>
+                            <label>Аудитория ресурса</label>
+                            <select name="target_scope" id="ea-target-scope">
+                                <option value="direction" selected>Все студенты текущей дисциплины</option>
+                                <option value="group">Только конкретная группа</option>
+                                <option value="teachers_only">Только преподаватели</option>
+                            </select>
 
-					<label>Описание</label>
-					<textarea name="description" rows="3" placeholder="Короткое описание ресурса"></textarea>
+                            <div id="ea-target-group-wrap">
+                                <label>Целевая группа</label>
+                                <select name="target_group" id="ea-target-group">
+                                    <option value="">Выберите группу</option>
+                                    <?php foreach ($context_group_options as $groupName): ?>
+                                        <option value="<?= htmlspecialchars($groupName) ?>">
+                                            <?= htmlspecialchars($groupName) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
 
-					<label class="ea-checkbox">
-						<input type="checkbox" name="allow_student_download"/>
-						Разрешить студенту скачивание
-					</label>
+                        <div>
+                            <label>Открыть не раньше</label>
+                            <input type="datetime-local" name="open_from"/>
 
-					<button type="submit" <?= !$can_register_resource ? 'disabled' : '' ?>>Зарегистрировать ресурс</button>
-				</form>
-			</section>
-		<?php endif; ?>
+                            <label>Дедлайн / срок действия</label>
+                            <input type="datetime-local" name="due_until"/>
+                        </div>
+                    </div>
+
+                    <label>Описание</label>
+                    <textarea name="description" rows="3" placeholder="Короткое описание ресурса"></textarea>
+
+                    <label class="ea-checkbox">
+                        <input type="checkbox" name="allow_student_download"/>
+                        Разрешить студенту скачивание
+                    </label>
+
+                    <button type="submit" <?= !$can_register_resource ? 'disabled' : '' ?>>Зарегистрировать ресурс</button>
+                </form>
+            </section>
+        <?php endif; ?>
 
         <section class="ea-card">
             <h2>Каталог ресурсов</h2>
@@ -364,6 +403,18 @@
 
                                     <?php if (!empty($resource['discipline_name'])): ?>
                                         <span><?= htmlspecialchars($resource['discipline_name']) ?></span>
+                                    <?php endif; ?>
+
+                                    <?php if (!empty($resource['publication_status'])): ?>
+                                        <span>Статус: <?= htmlspecialchars($resource['publication_status']) ?></span>
+                                    <?php endif; ?>
+
+                                    <?php if (!empty($resource['target_scope'])): ?>
+                                        <span>Аудитория: <?= htmlspecialchars($resource['target_scope']) ?></span>
+                                    <?php endif; ?>
+
+                                    <?php if (!empty($resource['target_group'])): ?>
+                                        <span>Группа: <?= htmlspecialchars($resource['target_group']) ?></span>
                                     <?php endif; ?>
 
                                     <span>Чувствительность: <?= htmlspecialchars($resource['sensitivity']) ?></span>

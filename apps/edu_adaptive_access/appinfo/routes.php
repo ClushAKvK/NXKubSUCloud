@@ -9,6 +9,10 @@ return [
         ['name' => 'page#saveAcademic', 'url' => '/academic/save', 'verb' => 'POST'],
         ['name' => 'page#saveResource', 'url' => '/resources/save', 'verb' => 'POST'],
         ['name' => 'page#deleteResource', 'url' => '/resources/delete', 'verb' => 'POST'],
+
+        ['name' => 'page#stepUpForm', 'url' => '/stepup/{id}', 'verb' => 'GET'],
+        ['name' => 'page#stepUpVerify', 'url' => '/stepup/{id}/verify', 'verb' => 'POST'],
+
         ['name' => 'page#viewResource', 'url' => '/resources/{id}', 'verb' => 'GET'],
         ['name' => 'page#readResource', 'url' => '/resources/{id}/read', 'verb' => 'GET'],
         ['name' => 'page#streamResource', 'url' => '/resources/{id}/stream', 'verb' => 'GET'],

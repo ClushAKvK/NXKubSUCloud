@@ -45,7 +45,7 @@ class AdaptiveAccessService {
         }
 
         if ($decision === 'STEP_UP' && $action === 'download') {
-            $reasons[] = 'Для MVP действие понижено: скачивание запрещено, но доступ к карточке ресурса остаётся';
+            $reasons[] = 'Для MVP действие понижено: скачивание требует дополнительного подтверждения';
         }
 
         return [
@@ -82,6 +82,36 @@ class AdaptiveAccessService {
         if ($isOwner) {
             $reasons[] = 'Владелец ресурса';
             return true;
+        }
+
+        $publicationStatus = (string)($resource['publication_status'] ?? 'published');
+        $targetScope = (string)($resource['target_scope'] ?? 'direction');
+        $targetGroup = trim((string)($resource['target_group'] ?? ''));
+
+        if ($publicationStatus === 'draft') {
+            $reasons[] = 'Ресурс находится в статусе черновика';
+            return false;
+        }
+
+        if ($targetScope === 'teachers_only') {
+            if ($role === 'teacher' && $matchesAcademicContext) {
+                $reasons[] = 'Ресурс предназначен только для преподавателей текущего учебного контекста';
+                return true;
+            }
+
+            $reasons[] = 'Ресурс предназначен только для преподавателей';
+            return false;
+        }
+
+        if ($targetScope === 'group' && $role === 'student') {
+            $studentGroup = trim((string)($profile['academic_group_name'] ?? ''));
+
+            if ($studentGroup === '' || $targetGroup === '' || $studentGroup !== $targetGroup) {
+                $reasons[] = 'Ресурс предназначен для другой учебной группы';
+                return false;
+            }
+
+            $reasons[] = 'Ресурс предназначен для вашей учебной группы';
         }
 
         $sensitivity = $resource['sensitivity'] ?? 'learning';
@@ -193,6 +223,16 @@ class AdaptiveAccessService {
         if (($resource['sensitivity'] ?? '') === 'exam' && $action === 'download') {
             $risk += 0.10;
             $reasons[] = 'Скачивание exam-ресурса повышает риск';
+        }
+
+        if (($resource['target_scope'] ?? '') === 'group' && $action === 'download') {
+            $risk += 0.05;
+            $reasons[] = 'Скачивание материала, адресованного конкретной группе, немного повышает риск';
+        }
+
+        if (($resource['target_scope'] ?? '') === 'teachers_only') {
+            $risk += 0.10;
+            $reasons[] = 'Материал преподавательского уровня повышает риск';
         }
 
         if (($profile['role'] ?? '') === 'teacher') {

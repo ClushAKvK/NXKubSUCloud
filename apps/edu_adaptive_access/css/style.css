@@ -823,3 +823,278 @@
         min-height: 340px;
     }
 }
+
+.ea-stepup-card {
+    max-width: 560px;
+    margin: 40px auto 0;
+}
+
+.ea-stepup-form {
+    display: grid;
+    gap: 14px;
+}
+
+.ea-stepup-form input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ea-wrap-stepup {
+    max-width: 760px;
+    padding: 0;
+    min-height: auto;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.ea-stepup-card {
+    max-width: none;
+    margin: 48px auto 0;
+    padding: 28px;
+}
+
+.ea-stepup-card h1 {
+    margin: 0 0 10px;
+    font-size: 30px;
+    line-height: 1.15;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.ea-stepup-form {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.ea-stepup-form label {
+    margin: 0;
+}
+
+.ea-stepup-form input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 48px;
+    padding: 0 14px;
+    border-radius: 12px;
+}
+
+.ea-stepup-form .ea-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.ea-stepup-form .ea-actions .button,
+.ea-stepup-form .ea-actions button {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 18px;
+    line-height: 1 !important;
+    white-space: nowrap;
+    text-align: center;
+    vertical-align: middle;
+}
+
+@media (max-width: 900px) {
+    .ea-wrap-stepup {
+        max-width: 100%;
+    }
+
+    .ea-stepup-card {
+        margin-top: 20px;
+        padding: 20px;
+    }
+
+    .ea-stepup-card h1 {
+        font-size: 24px;
+    }
+}
+
+.ea-inner-card {
+    margin-bottom: 0;
+}
+
+.ea-context-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.ea-context-summary-item {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ea-context-summary-item span {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #9fb0c9;
+    margin-bottom: 4px;
+}
+
+.ea-context-summary-item strong {
+    color: #f8fafc;
+    line-height: 1.45;
+}
+
+.ea-resource-form {
+    display: grid;
+    gap: 16px;
+}
+
+.ea-file-picker {
+    display: grid;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.ea-file-filter {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ea-file-select {
+    width: 100%;
+    height: 520px;
+    min-height: 520px;
+    box-sizing: border-box;
+    padding: 8px;
+    border-radius: 12px;
+    background: #0f1724;
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.ea-file-select option {
+    padding: 10px 12px;
+    white-space: nowrap;
+}
+
+.ea-file-selected {
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #dbe4ef;
+    line-height: 1.5;
+}
+
+.ea-selected-row {
+    display: grid;
+    gap: 4px;
+}
+
+.ea-selected-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #9fb0c9;
+}
+
+.ea-selected-value {
+    color: #f8fafc;
+    word-break: break-word;
+}
+
+#ea-target-group-wrap {
+    display: block;
+}
+
+.ea-wrap-stepup {
+    max-width: 760px;
+    padding: 0;
+    min-height: auto;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.ea-stepup-card {
+    max-width: none;
+    margin: 48px auto 0;
+    padding: 28px;
+}
+
+.ea-stepup-card h1 {
+    margin: 0 0 10px;
+    font-size: 30px;
+    line-height: 1.15;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.ea-stepup-form {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.ea-stepup-form label {
+    margin: 0;
+}
+
+.ea-stepup-form input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 48px;
+    padding: 0 14px;
+    border-radius: 12px;
+}
+
+.ea-stepup-form .ea-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.ea-stepup-form .ea-actions .button,
+.ea-stepup-form .ea-actions button {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 18px;
+    line-height: 1 !important;
+    white-space: nowrap;
+    text-align: center;
+    vertical-align: middle;
+}
+
+@media (max-width: 900px) {
+    .ea-file-select {
+        height: 340px;
+        min-height: 340px;
+    }
+
+    .ea-wrap-stepup {
+        max-width: 100%;
+    }
+
+    .ea-stepup-card {
+        margin-top: 20px;
+        padding: 20px;
+    }
+
+    .ea-stepup-card h1 {
+        font-size: 24px;
+    }
+}

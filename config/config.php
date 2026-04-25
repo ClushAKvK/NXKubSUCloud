@@ -21,6 +21,7 @@ $CONFIG = array (
   'installed' => true,
   'defaultapp' => 'files',
   'theme' => 'example',
+  'mail_send_plaintext_only' => true,
   'default_language' => 'ru',
   'force_language' => 'ru',
   'app_install_overwrite' => 

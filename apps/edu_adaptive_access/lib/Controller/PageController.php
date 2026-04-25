@@ -8,6 +8,7 @@ use OCA\EduAdaptiveAccess\Service\AcademicCatalogService;
 use OCA\EduAdaptiveAccess\Service\AdaptiveAccessService;
 use OCA\EduAdaptiveAccess\Service\PolicyConfigService;
 use OCA\EduAdaptiveAccess\Service\ResourceRegistryService;
+use OCA\EduAdaptiveAccess\Service\StepUpService;
 use OCA\EduAdaptiveAccess\Service\UserAttributeService;
 use OCA\EduAdaptiveAccess\Service\UserFileBrowserService;
 use OCP\AppFramework\Controller;
@@ -37,6 +38,7 @@ class PageController extends Controller {
         private IRootFolder $rootFolder,
         private UserFileBrowserService $userFileBrowserService,
         private AcademicCatalogService $academicCatalogService,
+        private StepUpService $stepUpService,
     ) {
         parent::__construct($appName, $request);
     }
@@ -56,6 +58,20 @@ class PageController extends Controller {
         $directionOptions = $this->academicCatalogService->getDirectionOptions();
         $disciplineOptions = $this->academicCatalogService->getDisciplinesForDirection($profile['direction_code'] ?? '');
         $groupDirectionMap = $this->academicCatalogService->getGroupDirectionMap();
+
+        $directionTitleMap = [];
+        foreach ($directionOptions as $direction) {
+            $directionTitleMap[$direction['code']] = $direction['title'];
+        }
+
+        $contextGroupOptions = [];
+        $currentDirectionCode = (string)($profile['direction_code'] ?? '');
+        foreach ($groupDirectionMap as $groupName => $directionCode) {
+            if ($currentDirectionCode !== '' && $directionCode === $currentDirectionCode) {
+                $contextGroupOptions[] = $groupName;
+            }
+        }
+        sort($contextGroupOptions, SORT_NATURAL | SORT_FLAG_CASE);
 
         $resources = [];
         foreach ($this->resourceRegistryService->getAll() as $resource) {
@@ -85,11 +101,6 @@ class PageController extends Controller {
 
             $resources[] = $resource;
         }
-		
-		$directionTitleMap = [];
-		foreach ($directionOptions as $direction) {
-			$directionTitleMap[$direction['code']] = $direction['title'];
-		}
 
         return new TemplateResponse(Application::APP_ID, 'index', [
             'profile' => $profile,
@@ -98,18 +109,21 @@ class PageController extends Controller {
             'selectable_files' => $selectableFiles,
             'direction_options' => $directionOptions,
             'discipline_options' => $disciplineOptions,
-			'direction_title_map' => $directionTitleMap,
+            'direction_title_map' => $directionTitleMap,
+            'context_group_options' => $contextGroupOptions,
             'academic_catalog_json' => json_encode($this->academicCatalogService->getCatalog(), JSON_UNESCAPED_UNICODE),
             'group_direction_map' => $groupDirectionMap,
             'is_admin' => $profile['role'] === 'admin',
             'can_register_resource' => in_array($profile['role'], ['teacher', 'admin'], true)
                 && ($profile['direction_code'] ?? '') !== ''
                 && ($profile['discipline_name'] ?? '') !== '',
+            'post_stepup_download_url' => (string)$this->request->getParam('stepup_download', ''),
+            'post_stepup_success' => (string)$this->request->getParam('stepup_success', '') === '1',
             'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
             'save_profile_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveProfile'),
             'save_global_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveGlobal'),
-            'save_resource_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveResource'),
             'save_academic_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveAcademic'),
+            'save_resource_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.saveResource'),
             'delete_resource_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.deleteResource'),
         ]);
     }
@@ -192,7 +206,7 @@ class PageController extends Controller {
                 $userFolder = $this->rootFolder->getUserFolder($user->getUID());
                 $userFolder->get($path[0] === '/' ? substr($path, 1) : $path);
             } catch (\Throwable $e) {
-                // MVP: не валим процесс жёстко
+                // MVP
             }
         }
 
@@ -220,6 +234,83 @@ class PageController extends Controller {
         }
 
         return $this->redirectToIndex();
+    }
+
+    /**
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     */
+    public function stepUpForm(string $id) {
+        Util::addStyle(Application::APP_ID, 'style');
+
+        $user = $this->requireUser();
+        $challenge = $this->stepUpService->getChallengeViewData($user, $id);
+
+        if ($challenge === null) {
+            return $this->redirectToIndex();
+        }
+
+        return new TemplateResponse(Application::APP_ID, 'stepup', [
+            'challenge_id' => $challenge['id'],
+            'resource_title' => $challenge['resource_title'],
+            'action_label' => $challenge['action_label'],
+            'attempts_left' => $challenge['attempts_left'],
+            'remaining_seconds' => $challenge['remaining_seconds'],
+            'debug_code' => $challenge['debug_code'],
+            'verify_url' => $this->urlGenerator->linkToRoute(
+                Application::APP_ID . '.page.stepUpVerify',
+                ['id' => $challenge['id']]
+            ),
+            'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+            'error_message' => '',
+        ]);
+    }
+
+    /**
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     */
+    public function stepUpVerify(string $id) {
+        Util::addStyle(Application::APP_ID, 'style');
+
+        $user = $this->requireUser();
+        $code = trim((string)$this->request->getParam('code', ''));
+
+        $result = $this->stepUpService->verifyChallenge($user, $id, $code);
+        if (($result['ok'] ?? false) === true) {
+            $indexUrl = $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index');
+
+            if (($result['action'] ?? '') === 'download') {
+                $query = http_build_query([
+                    'stepup_success' => '1',
+                    'stepup_download' => (string)$result['redirect_url'],
+                ]);
+
+                return new RedirectResponse($indexUrl . '?' . $query);
+            }
+
+            return new RedirectResponse($indexUrl . '?stepup_success=1');
+        }
+
+        $challenge = $this->stepUpService->getChallengeViewData($user, $id);
+        if ($challenge === null) {
+            return $this->redirectToIndex();
+        }
+
+        return new TemplateResponse(Application::APP_ID, 'stepup', [
+            'challenge_id' => $challenge['id'],
+            'resource_title' => $challenge['resource_title'],
+            'action_label' => $challenge['action_label'],
+            'attempts_left' => $challenge['attempts_left'],
+            'remaining_seconds' => $challenge['remaining_seconds'],
+            'debug_code' => $challenge['debug_code'],
+            'verify_url' => $this->urlGenerator->linkToRoute(
+                Application::APP_ID . '.page.stepUpVerify',
+                ['id' => $challenge['id']]
+            ),
+            'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+            'error_message' => (string)($result['error'] ?? 'Не удалось проверить код.'),
+        ]);
     }
 
     /**
@@ -267,7 +358,7 @@ class PageController extends Controller {
      * @NoAdminRequired
      * @NoCSRFRequired
      */
-    public function readResource(string $id): TemplateResponse {
+    public function readResource(string $id) {
         Util::addStyle(Application::APP_ID, 'style');
 
         $user = $this->requireUser();
@@ -286,26 +377,51 @@ class PageController extends Controller {
         }
 
         $readEval = $this->adaptiveAccessService->evaluate($resource, $user, 'read');
+        $resourceId = (string)$resource['id'];
 
-        if ($readEval['decision'] !== 'ALLOW') {
+        if ($readEval['decision'] === 'STEP_UP' && !$this->stepUpService->hasValidApproval($user, $resourceId, 'read')) {
+            $targetUrl = $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.readResource', ['id' => $resourceId]);
+            $challenge = $this->stepUpService->createChallengeAndSend($user, $resource, 'read', $targetUrl);
+
+            if (($challenge['ok'] ?? false) !== true) {
+                return new TemplateResponse(Application::APP_ID, 'resource', [
+                    'resource' => $resource,
+                    'read_eval' => $readEval,
+                    'download_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'download'),
+                    'supports_browser_read' => $this->supportsBrowserRead($resource),
+                    'is_pdf' => $this->isPdfResource($resource),
+                    'read_url' => '',
+                    'download_url' => $this->urlGenerator->linkToRoute(
+                        Application::APP_ID . '.page.downloadResource',
+                        ['id' => $resource['id']]
+                    ),
+                    'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+                    'message' => (string)($challenge['error'] ?? 'Не удалось инициировать дополнительное подтверждение.'),
+                ]);
+            }
+
+            return new RedirectResponse(
+                $this->urlGenerator->linkToRoute(
+                    Application::APP_ID . '.page.stepUpForm',
+                    ['id' => $challenge['challenge_id']]
+                )
+            );
+        }
+
+        if ($readEval['decision'] === 'DENY') {
             return new TemplateResponse(Application::APP_ID, 'resource', [
                 'resource' => $resource,
                 'read_eval' => $readEval,
                 'download_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'download'),
                 'supports_browser_read' => $this->supportsBrowserRead($resource),
                 'is_pdf' => $this->isPdfResource($resource),
-                'read_url' => $this->urlGenerator->linkToRoute(
-                    Application::APP_ID . '.page.readResource',
-                    ['id' => $resource['id']]
-                ),
+                'read_url' => '',
                 'download_url' => $this->urlGenerator->linkToRoute(
                     Application::APP_ID . '.page.downloadResource',
                     ['id' => $resource['id']]
                 ),
                 'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
-                'message' => $readEval['decision'] === 'STEP_UP'
-                    ? 'Чтение в браузере переведено в STEP_UP и для MVP заблокировано'
-                    : 'Чтение в браузере запрещено',
+                'message' => 'Чтение в браузере запрещено.',
             ]);
         }
 
@@ -339,7 +455,9 @@ class PageController extends Controller {
                 Application::APP_ID . '.page.viewResource',
                 ['id' => $resource['id']]
             ),
-            'message' => 'PDF открыт через демонстрационную обёртку просмотра.',
+            'message' => $readEval['decision'] === 'STEP_UP'
+                ? 'Доступ разрешён после дополнительного подтверждения.'
+                : 'PDF открыт через демонстрационную обёртку просмотра.',
         ]);
 
         $csp = new ContentSecurityPolicy();
@@ -370,18 +488,29 @@ class PageController extends Controller {
         }
 
         $readEval = $this->adaptiveAccessService->evaluate($resource, $user, 'read');
+        $resourceId = (string)$resource['id'];
 
-        if ($readEval['decision'] !== 'ALLOW') {
+        if ($readEval['decision'] === 'STEP_UP' && !$this->stepUpService->hasValidApproval($user, $resourceId, 'read')) {
             return new TemplateResponse(Application::APP_ID, 'resource', [
                 'resource' => $resource,
-                'read_eval' => $readEval,
-                'download_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'download'),
+                'message' => 'Для чтения PDF требуется завершить дополнительное подтверждение.',
+                'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
                 'supports_browser_read' => true,
                 'is_pdf' => true,
                 'read_url' => '',
                 'download_url' => '',
+            ]);
+        }
+
+        if ($readEval['decision'] === 'DENY') {
+            return new TemplateResponse(Application::APP_ID, 'resource', [
+                'resource' => $resource,
+                'message' => 'Чтение PDF запрещено политикой доступа.',
                 'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
-                'message' => 'Чтение PDF запрещено политикой доступа',
+                'supports_browser_read' => true,
+                'is_pdf' => true,
+                'read_url' => '',
+                'download_url' => '',
             ]);
         }
 
@@ -455,10 +584,38 @@ class PageController extends Controller {
         }
 
         $downloadEval = $this->adaptiveAccessService->evaluate($resource, $user, 'download');
+        $resourceId = (string)$resource['id'];
 
-        if ($downloadEval['decision'] !== 'ALLOW') {
-            Util::addStyle(Application::APP_ID, 'style');
+        if ($downloadEval['decision'] === 'STEP_UP' && !$this->stepUpService->hasValidApproval($user, $resourceId, 'download')) {
+            $targetUrl = $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.downloadResource', ['id' => $resourceId]);
+            $challenge = $this->stepUpService->createChallengeAndSend($user, $resource, 'download', $targetUrl);
 
+            if (($challenge['ok'] ?? false) !== true) {
+                return new TemplateResponse(Application::APP_ID, 'resource', [
+                    'resource' => $resource,
+                    'read_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'read'),
+                    'download_eval' => $downloadEval,
+                    'supports_browser_read' => $this->supportsBrowserRead($resource),
+                    'is_pdf' => $this->isPdfResource($resource),
+                    'read_url' => $this->urlGenerator->linkToRoute(
+                        Application::APP_ID . '.page.readResource',
+                        ['id' => $resource['id']]
+                    ),
+                    'download_url' => '',
+                    'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
+                    'message' => (string)($challenge['error'] ?? 'Не удалось инициировать дополнительное подтверждение.'),
+                ]);
+            }
+
+            return new RedirectResponse(
+                $this->urlGenerator->linkToRoute(
+                    Application::APP_ID . '.page.stepUpForm',
+                    ['id' => $challenge['challenge_id']]
+                )
+            );
+        }
+
+        if ($downloadEval['decision'] === 'DENY') {
             return new TemplateResponse(Application::APP_ID, 'resource', [
                 'resource' => $resource,
                 'read_eval' => $this->adaptiveAccessService->evaluate($resource, $user, 'read'),
@@ -469,14 +626,9 @@ class PageController extends Controller {
                     Application::APP_ID . '.page.readResource',
                     ['id' => $resource['id']]
                 ),
-                'download_url' => $this->urlGenerator->linkToRoute(
-                    Application::APP_ID . '.page.downloadResource',
-                    ['id' => $resource['id']]
-                ),
+                'download_url' => '',
                 'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
-                'message' => $downloadEval['decision'] === 'STEP_UP'
-                    ? 'Скачивание переведено в STEP_UP и для MVP заблокировано'
-                    : 'Скачивание запрещено',
+                'message' => 'Скачивание запрещено.',
             ]);
         }
 
@@ -496,10 +648,7 @@ class PageController extends Controller {
                         Application::APP_ID . '.page.readResource',
                         ['id' => $resource['id']]
                     ),
-                    'download_url' => $this->urlGenerator->linkToRoute(
-                        Application::APP_ID . '.page.downloadResource',
-                        ['id' => $resource['id']]
-                    ),
+                    'download_url' => '',
                     'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
                     'message' => 'Указанный путь не ведёт к файлу',
                 ]);
@@ -521,10 +670,7 @@ class PageController extends Controller {
                     Application::APP_ID . '.page.readResource',
                     ['id' => $resource['id']]
                 ),
-                'download_url' => $this->urlGenerator->linkToRoute(
-                    Application::APP_ID . '.page.downloadResource',
-                    ['id' => $resource['id']]
-                ),
+                'download_url' => '',
                 'index_url' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
                 'message' => 'Файл по указанному пути не найден',
             ]);
