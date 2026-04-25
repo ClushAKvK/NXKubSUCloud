@@ -29,12 +29,12 @@ class AdaptiveAccessService {
                 'risk' => 1.0,
                 'base_allowed' => false,
                 'subject' => $profile,
-                'context' => $this->buildContext($profile, $policy),
+                'context' => $this->buildContext($policy),
                 'reasons' => $reasons,
             ];
         }
 
-        $context = $this->buildContext($profile, $policy);
+        $context = $this->buildContext($policy);
         $risk = $this->calculateRisk($resource, $profile, $action, $context, $reasons);
 
         $decision = 'ALLOW';
@@ -45,7 +45,7 @@ class AdaptiveAccessService {
         }
 
         if ($decision === 'STEP_UP' && $action === 'download') {
-            $reasons[] = 'Для MVP действие понижено: скачивание запрещено, чтение карточки ресурса остаётся доступным';
+            $reasons[] = 'Для MVP действие понижено: скачивание требует дополнительного подтверждения';
         }
 
         return [
@@ -58,22 +58,20 @@ class AdaptiveAccessService {
         ];
     }
 
-    private function buildContext(array $profile, array $policy): array {
+    private function buildContext(array $policy): array {
         $ip = $this->request->getRemoteAddress();
         $trustedNetwork = $this->cidrMatcher->matchesAny($ip, $this->policyConfigService->getTrustedCidrsAsArray());
 
         return [
             'ip' => $ip,
             'trusted_network' => $trustedNetwork,
-            'managed_device' => (bool)$profile['managed_device'],
             'mode' => $policy['mode'],
         ];
     }
 
     private function isBaseAllowed(array $resource, array $profile, string $action, array &$reasons): bool {
         $role = $profile['role'];
-        $sameCourse = ($profile['course_code'] ?? '') !== '' &&
-            ($profile['course_code'] ?? '') === ($resource['course_code'] ?? '');
+        $matchesAcademicContext = $this->matchesAcademicContext($resource, $profile);
         $isOwner = ($profile['uid'] ?? '') === ($resource['owner_uid'] ?? '');
 
         if ($role === 'admin') {
@@ -86,6 +84,36 @@ class AdaptiveAccessService {
             return true;
         }
 
+        $publicationStatus = (string)($resource['publication_status'] ?? 'published');
+        $targetScope = (string)($resource['target_scope'] ?? 'direction');
+        $targetGroup = trim((string)($resource['target_group'] ?? ''));
+
+        if ($publicationStatus === 'draft') {
+            $reasons[] = 'Ресурс находится в статусе черновика';
+            return false;
+        }
+
+        if ($targetScope === 'teachers_only') {
+            if ($role === 'teacher' && $matchesAcademicContext) {
+                $reasons[] = 'Ресурс предназначен только для преподавателей текущего учебного контекста';
+                return true;
+            }
+
+            $reasons[] = 'Ресурс предназначен только для преподавателей';
+            return false;
+        }
+
+        if ($targetScope === 'group' && $role === 'student') {
+            $studentGroup = trim((string)($profile['academic_group_name'] ?? ''));
+
+            if ($studentGroup === '' || $targetGroup === '' || $studentGroup !== $targetGroup) {
+                $reasons[] = 'Ресурс предназначен для другой учебной группы';
+                return false;
+            }
+
+            $reasons[] = 'Ресурс предназначен для вашей учебной группы';
+        }
+
         $sensitivity = $resource['sensitivity'] ?? 'learning';
 
         if ($sensitivity === 'public') {
@@ -94,37 +122,37 @@ class AdaptiveAccessService {
         }
 
         if ($sensitivity === 'learning') {
-            if ($role === 'teacher') {
-                $reasons[] = 'Преподаватель';
+            if ($role === 'teacher' && $matchesAcademicContext) {
+                $reasons[] = 'Преподаватель в совпадающем учебном контексте';
                 return true;
             }
 
-            if ($role === 'student' && $sameCourse) {
-                $reasons[] = 'Студент своего курса';
+            if ($role === 'student' && $matchesAcademicContext) {
+                $reasons[] = 'Студент своего учебного контекста';
                 return true;
             }
 
-            $reasons[] = 'Learning-ресурс доступен только преподавателю или студенту своего курса';
+            $reasons[] = 'Learning-ресурс доступен только в совпадающем учебном контексте';
             return false;
         }
 
         if ($sensitivity === 'personal') {
-            if ($role === 'teacher' && $sameCourse) {
-                $reasons[] = 'Преподаватель своего курса';
+            if ($role === 'teacher' && $matchesAcademicContext) {
+                $reasons[] = 'Преподаватель в совпадающем учебном контексте';
                 return true;
             }
 
-            $reasons[] = 'Personal-ресурс доступен владельцу, администратору или преподавателю своего курса';
+            $reasons[] = 'Personal-ресурс доступен владельцу, администратору или преподавателю совпадающего учебного контекста';
             return false;
         }
 
         if ($sensitivity === 'exam') {
-            if ($role === 'teacher') {
-                $reasons[] = 'Преподаватель';
+            if ($role === 'teacher' && $matchesAcademicContext) {
+                $reasons[] = 'Преподаватель в совпадающем учебном контексте';
                 return true;
             }
 
-            if ($role === 'student' && $sameCourse) {
+            if ($role === 'student' && $matchesAcademicContext) {
                 $openFrom = trim((string)($resource['open_from'] ?? ''));
                 if ($openFrom !== '') {
                     $now = new DateTimeImmutable('now');
@@ -140,11 +168,11 @@ class AdaptiveAccessService {
                     return false;
                 }
 
-                $reasons[] = 'Студент своего курса и ресурс уже открыт';
+                $reasons[] = 'Студент своего учебного контекста и ресурс уже открыт';
                 return true;
             }
 
-            $reasons[] = 'Exam-ресурс доступен преподавателю, администратору или студенту своего курса после открытия';
+            $reasons[] = 'Exam-ресурс доступен преподавателю, администратору или студенту совпадающего контекста после открытия';
             return false;
         }
 
@@ -182,13 +210,6 @@ class AdaptiveAccessService {
             $reasons[] = 'Доверенная сеть';
         }
 
-        if (!$context['managed_device']) {
-            $risk += 0.20;
-            $reasons[] = 'Неуправляемое устройство';
-        } else {
-            $reasons[] = 'Управляемое устройство';
-        }
-
         if ($context['mode'] === 'deadline') {
             $risk += 0.15;
             $reasons[] = 'Режим дедлайна';
@@ -204,11 +225,46 @@ class AdaptiveAccessService {
             $reasons[] = 'Скачивание exam-ресурса повышает риск';
         }
 
+        if (($resource['target_scope'] ?? '') === 'group' && $action === 'download') {
+            $risk += 0.05;
+            $reasons[] = 'Скачивание материала, адресованного конкретной группе, немного повышает риск';
+        }
+
+        if (($resource['target_scope'] ?? '') === 'teachers_only') {
+            $risk += 0.10;
+            $reasons[] = 'Материал преподавательского уровня повышает риск';
+        }
+
         if (($profile['role'] ?? '') === 'teacher') {
             $risk -= 0.05;
             $reasons[] = 'Роль преподавателя немного снижает риск';
         }
 
         return max(0.0, min(1.0, $risk));
+    }
+
+    private function matchesAcademicContext(array $resource, array $profile): bool {
+        $profileDirection = trim((string)($profile['direction_code'] ?? ''));
+        $profileDiscipline = trim((string)($profile['discipline_name'] ?? ''));
+
+        $resourceDirection = trim((string)($resource['direction_code'] ?? ''));
+        $resourceDiscipline = trim((string)($resource['discipline_name'] ?? ''));
+
+        if ($resourceDirection !== '' || $profileDirection !== '') {
+            if ($profileDirection === '' || $resourceDirection === '' || $profileDirection !== $resourceDirection) {
+                return false;
+            }
+
+            if ($resourceDiscipline !== '') {
+                return $profileDiscipline !== '' && $profileDiscipline === $resourceDiscipline;
+            }
+
+            return true;
+        }
+
+        $legacyProfileCourse = trim((string)($profile['course_code'] ?? ''));
+        $legacyResourceCourse = trim((string)($resource['course_code'] ?? ''));
+
+        return $legacyProfileCourse !== '' && $legacyProfileCourse === $legacyResourceCourse;
     }
 }

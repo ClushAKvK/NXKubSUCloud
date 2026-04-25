@@ -46,13 +46,28 @@ class ResourceRegistryService {
         $resources = $this->getAll();
         $id = trim((string)($input['id'] ?? ''));
 
+        $directionCode = trim((string)($input['direction_code'] ?? ''));
+        $directionTitle = trim((string)($input['direction_title'] ?? ''));
+        $disciplineName = trim((string)($input['discipline_name'] ?? ''));
+
         $normalized = [
             'id' => $id !== '' ? $id : bin2hex(random_bytes(8)),
             'owner_uid' => $ownerUid,
             'owner_path' => $this->normalizePath((string)($input['owner_path'] ?? '')),
             'title' => trim((string)($input['title'] ?? '')),
             'description' => trim((string)($input['description'] ?? '')),
-            'course_code' => trim((string)($input['course_code'] ?? '')),
+
+            'direction_code' => $directionCode,
+            'direction_title' => $directionTitle,
+            'discipline_name' => $disciplineName,
+
+            // legacy compatibility
+            'course_code' => $directionCode,
+
+            'publication_status' => $this->normalizePublicationStatus((string)($input['publication_status'] ?? 'published')),
+            'target_scope' => $this->normalizeTargetScope((string)($input['target_scope'] ?? 'direction')),
+            'target_group' => trim((string)($input['target_group'] ?? '')),
+
             'sensitivity' => $this->normalizeSensitivity((string)($input['sensitivity'] ?? 'learning')),
             'open_from' => trim((string)($input['open_from'] ?? '')),
             'due_until' => trim((string)($input['due_until'] ?? '')),
@@ -60,6 +75,10 @@ class ResourceRegistryService {
             'updated_at' => date('c'),
             'created_at' => date('c'),
         ];
+
+        if ($normalized['target_scope'] !== 'group') {
+            $normalized['target_group'] = '';
+        }
 
         $updated = false;
         foreach ($resources as $index => $resource) {
@@ -101,6 +120,24 @@ class ResourceRegistryService {
         $value = trim($value);
         if (!in_array($value, ['public', 'learning', 'personal', 'exam'], true)) {
             return 'learning';
+        }
+
+        return $value;
+    }
+
+    private function normalizePublicationStatus(string $value): string {
+        $value = trim($value);
+        if (!in_array($value, ['draft', 'published'], true)) {
+            return 'published';
+        }
+
+        return $value;
+    }
+
+    private function normalizeTargetScope(string $value): string {
+        $value = trim($value);
+        if (!in_array($value, ['direction', 'group', 'teachers_only'], true)) {
+            return 'direction';
         }
 
         return $value;
