@@ -31,9 +31,9 @@
 
 <div class="ea-app-scroll">
     <div class="ea-wrap">
-        <h1>Adaptive Access MVP</h1>
+        <h1>База знаний КубГУ с адаптивным доступом</h1>
         <p class="ea-subtitle">
-            Демонстрационный слой адаптивного доступа для образовательных ресурсов поверх Nextcloud.
+        Внеешний слой адаптивного доступа для образовательных ресурсов поверх Nextcloud.
         </p>
 
         <?php if ($post_stepup_success): ?>
